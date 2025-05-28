@@ -8,8 +8,8 @@ const util = require('util');
 require('dotenv').config();
 
 const pipelineAsync = util.promisify(pipeline);
-const localPath = path.join(__dirname, '..', process.env.FAISS_INDEX_FILE);
-const textsPath = path.join(__dirname, '..', 'texts.json'); // Path for storing texts
+const localPath = path.join(__dirname, '..', 'index' ,process.env.FAISS_INDEX_FILE);
+const textsPath = path.join(__dirname, '..','texts' ,'texts.json'); // Path for storing texts temp
 let index = null;
 let storedTexts = []; // In-memory storage for texts
 
@@ -44,20 +44,25 @@ exports.addToIndex = async (texts, embeddings) => {
   }
 
   // Store texts and add embeddings
-  console.log("Adding to index: num vectors =", embeddings.length, "dimension =", dimension);
-  console.log("Sample embedding[0]:", embeddings[0].slice(0, 10));
+  // console.log("Adding to index: num vectors =", embeddings.length, "dimension =", dimension);
+  // console.log("Sample embedding[0]:", embeddings[0].slice(0, 10));
+
   for (let i = 0; i < embeddings.length; i++) {
     console.log(`Adding vector ${i + 1}/${embeddings.length}`);
     index.add(embeddings[i]); // Add single 1D array
     storedTexts.push(texts[i]); // Store corresponding text
   }
 
+  // Storing in local REMOVE LATER
   await this.saveIndexToFile();
   await this.saveTextsToFile();
+
+  // Uploading to s3 storage
   await this.uploadIndexToS3();
   await this.uploadTextsToS3();
 };
 
+// Local
 exports.saveIndexToFile = async () => {
   if (!index) throw new Error("FAISS index not initialized");
   console.log("Saving index to:", localPath);
@@ -65,34 +70,42 @@ exports.saveIndexToFile = async () => {
   console.log("Index saved successfully");
 };
 
+// Local
 exports.saveTextsToFile = async () => {
   console.log("Saving texts to:", textsPath);
   fs.writeFileSync(textsPath, JSON.stringify(storedTexts, null, 2));
   console.log("Texts saved successfully");
 };
 
+// Storing in s3
 exports.uploadIndexToS3 = async () => {
   const fileStream = fs.createReadStream(localPath);
   const command = new PutObjectCommand({
     Bucket: process.env.S3_BUCKET_NAME,
-    Key: process.env.FAISS_S3_PATH,
+    Key: process.env.FAISS_S3_PATH, // Make this dynamic so that it stores in respected clients bucket
     Body: fileStream
   });
   console.log("Uploading index to S3:", process.env.FAISS_S3_PATH);
   await s3Client.send(command);
   console.log("Index uploaded to S3 successfully");
+    await fs.promises.unlink(localPath);
+  console.log("unlinked index succefully");
 };
 
+// Storing in s3
 exports.uploadTextsToS3 = async () => {
   const fileStream = fs.createReadStream(textsPath);
   const command = new PutObjectCommand({
     Bucket: process.env.S3_BUCKET_NAME,
-    Key: 'faiss/texts.json', // Store texts.json in S3
+    Key: 'faiss/texts.json', // Make this dynamic so that it stores in respected clients bucket
     Body: fileStream
   });
   console.log("Uploading texts to S3: faiss/texts.json");
   await s3Client.send(command);
   console.log("Texts uploaded to S3 successfully");
+  await fs.promises.unlink(textsPath);
+  console.log("unlinked text succefully");
+  
 };
 
 exports.loadIndexFromS3 = async () => {

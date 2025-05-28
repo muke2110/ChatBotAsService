@@ -18,7 +18,7 @@ Answer:`;
       textGenerationConfig: {
         maxTokenCount: 500,
         temperature: 0.7,
-        topP: 0.9 // Optional: Controls diversity
+        topP: 0.9  
       }
     })
   });

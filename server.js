@@ -8,6 +8,7 @@ require('./models/user.model');
 require('./models//payment.model');
 require('./models/plan.model');
 require('./models/userPlan.model');
+require('./models/client.model')
 
 const app = express()
 app.use(cors());

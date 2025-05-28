@@ -1,13 +1,15 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/user.model');
+const Client = require('../models/client.model');
 
 exports.register = async (req, res) => {
   try {
     const { fullName, email, password } = req.body;
     const hash = await bcrypt.hash(password, 10);
     const user = await User.create({ fullName, email, password: hash });
-    res.status(201).json({ message: 'User registered', user });
+    const client = await Client.create({clientId: user.clientId, name: fullName})
+    res.status(201).json({ message: 'User registered', user , client});
   } catch (err) {
     res.status(400).json({ error: err.message });
   }

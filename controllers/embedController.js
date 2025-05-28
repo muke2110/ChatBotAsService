@@ -29,6 +29,9 @@ exports.uploadAndEmbedFiles = async (req, res) => {
       console.error("❌ Inconsistent embedding found:", inconsistent.length);
     }
 
+
+    // Also send the s3 Bucket Location to that s3Service function so that it can go their with respected bucket
+
     await s3Service.uploadEmbeddings(allChunks, embeddings);
     await faissService.addToIndex(allChunks, embeddings); // Make async
 

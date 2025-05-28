@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
-const {sequelize} = require('../config/database');
+const { sequelize } = require('../config/database');
+const { v4: uuidv4 } = require('uuid');
 
 const User = sequelize.define('User', {
   id: {
@@ -17,7 +18,17 @@ const User = sequelize.define('User', {
   role: {
     type: DataTypes.ENUM('user', 'admin'),
     defaultValue: 'user'
-  }
+  },
+  // keys: {
+  //   type: DataTypes.ARRAY(DataTypes.STRING),
+  //   defaultValue: []
+  // }
+  clientId: {
+    type: DataTypes.STRING,
+    unique: true,
+    allowNull: false,
+    defaultValue: () => `client_${uuidv4()}`
+  },
 }, {
   timestamps: true
 });

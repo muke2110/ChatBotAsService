@@ -10,10 +10,16 @@ exports.handleQuery = async (req, res) => {
     console.log('Processing query:', query);
     const queryEmbedding = await embedService.generateEmbeddings([query]);
     console.log('Query embedding generated');
+
+
     await faissService.loadIndexFromS3();
     console.log('FAISS index loaded');
+
+
     const results = faissService.search(queryEmbedding[0]);
     console.log('Search results:', results);
+
+    
     const totalText = results.map(result => result.text);
     console.log('Total Text::::', totalText[0]);
 
