@@ -53,7 +53,7 @@ exports.addToIndex = async (texts, embeddings, s3BucketLocation) => {
   // console.log("Sample embedding[0]:", embeddings[0].slice(0, 10));
 
   for (let i = 0; i < embeddings.length; i++) {
-    console.log(`Adding vector ${i + 1}/${embeddings.length}`);
+    // console.log(`Adding vector ${i + 1}/${embeddings.length}`);
     index.add(embeddings[i]); // Add single 1D array
     storedTexts.push(texts[i]); // Store corresponding text
   }
@@ -72,18 +72,18 @@ exports.saveIndexToFile = async () => {
   if (!index) throw new Error("FAISS index not initialized");
   const dir = path.dirname(localPath);
   await fsPromises.mkdir(dir, { recursive: true }); // Ensure directory exists
-  console.log("Saving index to:", localPath);
+  // console.log("Saving index to:", localPath);
   index.write(localPath);
-  console.log("Index saved successfully");
+  // console.log("Index saved successfully");
 };
 
 // Local
 exports.saveTextsToFile = async () => {
-  console.log("Saving texts to:", textsPath);
+  // console.log("Saving texts to:", textsPath);
   const dir = path.dirname(textsPath);
   await fsPromises.mkdir(dir, { recursive: true }); // Ensure directory exists
   fs.writeFileSync(textsPath, JSON.stringify(storedTexts, null, 2));
-  console.log("Texts saved successfully");
+  // console.log("Texts saved successfully");
 };
 
 // Storing in s3
@@ -94,11 +94,11 @@ exports.uploadIndexToS3 = async (s3BucketLocation) => {
     Key: `${s3BucketLocation}/${process.env.FAISS_S3_PATH}`, // Make this dynamic so that it stores in respected clients bucket
     Body: fileStream
   });
-  console.log("Uploading index to S3:", process.env.FAISS_S3_PATH);
+  // console.log("Uploading index to S3:", process.env.FAISS_S3_PATH);
   await s3Client.send(command);
-  console.log("Index uploaded to S3 successfully");
+  // console.log("Index uploaded to S3 successfully");
   await fs.promises.unlink(localPath);
-  console.log("unlinked index succefully");
+  // console.log("unlinked index succefully");
 };
 
 // Storing in s3
@@ -109,11 +109,11 @@ exports.uploadTextsToS3 = async (s3BucketLocation) => {
     Key:  `${s3BucketLocation}/${process.env.FAISS_TEXT_PATH}`, // Make this dynamic so that it stores in respected clients bucket
     Body: fileStream
   });
-  console.log("Uploading texts to S3: faiss/texts.json");
+  // console.log("Uploading texts to S3: faiss/texts.json");
   await s3Client.send(command);
-  console.log("Texts uploaded to S3 successfully");
+  // console.log("Texts uploaded to S3 successfully");
   await fs.promises.unlink(textsPath);
-  console.log("unlinked text succefully");
+  // console.log("unlinked text succefully");
 
 };
 
