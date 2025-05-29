@@ -24,7 +24,7 @@ exports.generateEmbeddings = async (texts) => {
 
 
 exports.generateEmbedding = async (text) => {
-  console.log("Getting here:: ", process.env.BEDROCK_MODEL_ID);
+  // console.log("Getting here:: ", process.env.BEDROCK_MODEL_ID);
   
   const command = new InvokeModelCommand({
     modelId: process.env.BEDROCK_MODEL_ID,

@@ -7,6 +7,7 @@ const faissService = require('../services/faissService');
 exports.uploadAndEmbedFiles = async (req, res) => {
   try {
     const files = req.files;
+    const s3BucketLocation = req.s3ModelPath
     let allChunks = [];
 
     for (const file of files) {
@@ -32,8 +33,8 @@ exports.uploadAndEmbedFiles = async (req, res) => {
 
     // Also send the s3 Bucket Location to that s3Service function so that it can go their with respected bucket
 
-    await s3Service.uploadEmbeddings(allChunks, embeddings);
-    await faissService.addToIndex(allChunks, embeddings); // Make async
+    // await s3Service.uploadEmbeddings(allChunks, embeddings, s3BucketLocation);
+    await faissService.addToIndex(allChunks, embeddings, s3BucketLocation); // Make async
 
     res.status(200).json({ message: 'Files processed and embeddings stored successfully.' });
   } catch (error) {

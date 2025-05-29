@@ -8,7 +8,6 @@ module.exports = async function (req, res, next) {
   if (!clientId) return res.status(400).json({ message: 'Missing clientId' });
 
   const client = await Client.findOne({ where: { clientId: clientId } });
-  console.log(client);
 
   if (!client) return res.status(404).json({ message: 'Invalid clientId' });
   
@@ -16,6 +15,6 @@ module.exports = async function (req, res, next) {
   // console.log("Client ID: ",client.clientId);
   // console.log("Client Bucket location: ",client.s3ModelPath);
   
-  req.client = client; // Add client data to request
+  req.s3ModelPath = client.s3ModelPath; // Add client data to request
   next();
 };

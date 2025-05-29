@@ -7,7 +7,7 @@ ${contexts}
 
 Question: ${query}
 Answer:`;
-  console.log('Total prompt:', prompt);
+  // console.log('Total prompt:', prompt);
 
   const command = new InvokeModelCommand({
     modelId: process.env.BEDROCK_GPT_MODEL,
@@ -24,13 +24,18 @@ Answer:`;
   });
 
   try {
-    console.log('Command body:', JSON.parse(command.input.body));
+
+    // console.log('Command body:', JSON.parse(command.input.body));
+    
     const response = await bedrockClient.send(command);
     const responseBody = JSON.parse(Buffer.from(response.body).toString());
-    console.log('ResponseBody:', responseBody);
+    
+    // console.log('ResponseBody:', responseBody);
+    
     if (!responseBody.results || !responseBody.results[0] || !responseBody.results[0].outputText) {
       throw new Error('Invalid response format from Bedrock');
     }
+    
     return responseBody.results[0].outputText.trim();
   } catch (error) {
     console.error('Error in generateResponse:', error);

@@ -6,8 +6,9 @@ const router = express.Router();
 const upload = multer({ dest: 'uploads/' });
 
 //Middleware
-const middleware = require('../middleware/auth.middleware')
+const AuthMiddleware = require('../middleware/auth.middleware')
+const ClientIdMiddleware = require('../middleware/clientId.middleware')
 
-router.post('/upload', upload.array('files'), embedController.uploadAndEmbedFiles);
+router.post('/upload', upload.array('files'), AuthMiddleware, ClientIdMiddleware, embedController.uploadAndEmbedFiles);
 
 module.exports = router;
