@@ -17,7 +17,6 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use('/api',route)
 
-
 syncDatabase().then(() => {
     console.log('Database is ready!');
     app.listen(port, () => {

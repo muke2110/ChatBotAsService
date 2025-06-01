@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon server.js --ignore faiss.index --ignore texts.json"
+    "start": "nodemon server.js --ignore index/ --ignore texts/"
   },
   "keywords": [],
   "author": "",
@@ -16,6 +16,7 @@
     "aws-sdk": "^2.1692.0",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
+    "crypto": "^1.0.1",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "faiss-node": "^0.5.1",
