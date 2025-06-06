@@ -1,20 +1,39 @@
-// const Client = require('../models/client.model');
-const User = require('../models/user.model')
-const Client = require('../models/client.model')
+const Client = require('../models/client.model');
+const User = require('../models/user.model');
+const { ApiError } = require('../utils/apiError');
+const logger = require('../utils/logger');
 
-module.exports = async function (req, res, next) {
-  const clientId = req.headers['x-client-id'];
+exports.clientIdMiddleware = async (req, res, next) => {
+  try {
+    const clientId = req.headers['x-client-id'];
 
-  if (!clientId) return res.status(400).json({ message: 'Missing clientId' });
+    if (!clientId) {
+      throw new ApiError(401, 'Missing client ID');
+    }
 
-  const client = await Client.findOne({ where: { clientId: clientId } });
+    const client = await Client.findOne({ 
+      where: { clientId: clientId } 
+    });
+    const user = await User.findOne({ 
+      where: { clientId: clientId } 
+    });
 
-  if (!client) return res.status(404).json({ message: 'Invalid clientId' });
-  
-  // console.log("Client Data: ", client);
-  // console.log("Client ID: ",client.clientId);
-  // console.log("Client Bucket location: ",client.s3ModelPath);
-  
-  req.s3ModelPath = client.s3ModelPath; // Add client data to request
-  next();
+    if (!client) {
+      throw new ApiError(401, 'Invalid client ID');
+    }
+    // console.log(user.id);
+    
+    req.clientId = clientId;
+    req.user = user;
+    req.s3ModelPath = client.s3ModelPath;
+
+    logger.info('Client ID validated', {
+      clientId,
+      s3ModelPath: client.s3ModelPath
+    });
+
+    next();
+  } catch (error) {
+    next(error);
+  }
 };

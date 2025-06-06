@@ -8,6 +8,14 @@ const Client = sequelize.define('Client', {
     defaultValue: DataTypes.UUIDV4,
     primaryKey: true
   },
+  userId: {
+    type: DataTypes.UUID,
+    allowNull: false,
+    references: {
+      model: 'Users',
+      key: 'id'
+    }
+  },
   clientId: {
     type: DataTypes.STRING,
     unique: true,

@@ -7,7 +7,7 @@ const authRoutes = require('./routes/authRoutes')
 
 router.use('/embed', embedRoutes);
 router.use('/query', queryRoutes);
-router.use('/payment',paymentRoutes)
+router.use('/payments',paymentRoutes)
 router.use('/auth',authRoutes)
 
 module.exports = router

@@ -1,46 +1,67 @@
 const faissService = require('../services/faissService');
 const embedService = require('../services/embedService');
 const ragService = require('../services/ragService');
+const logger = require('../utils/logger');
 
 exports.handleQuery = async (req, res) => {
   try {
-
-    // To get the s3Bucket location which is getting from the clientID (Middleware)
-    // console.log("client s3ModelPath: ", req.s3ModelPath);
-
-    const s3BucketLocation = req.s3ModelPath
- 
+    // Get the model path from the client middleware
+    const modelPath = req.s3ModelPath;
     const query = req.body.query;
-    if (!query) throw new Error('Query is required');
-
-    // console.log('Processing query:', query);
-    const queryEmbedding = await embedService.generateEmbeddings([query]);
-    // console.log('Query embedding generated');
-
-
-    const index = await faissService.loadIndexFromS3(s3BucketLocation);
-    // console.log('FAISS index loaded');
-
-
-    const results = await faissService.search(s3BucketLocation, index, queryEmbedding[0]);
-    // console.log('Search results:', results);
-
     
-    const totalText = results.map(result => result.text);
-    // console.log('Total Text::::', totalText[0]);
+    if (!query) {
+      throw new Error('Query is required');
+    }
 
-    const finalResult = await ragService.generateResponse(query, totalText[0]);
-    // console.log('Bedrock response:', finalResult);
-    res.status(200).json({
+    if (!modelPath) {
+      throw new Error('Model path is required');
+    }
+
+    logger.info('Processing query request', {
+      query: query.slice(0, 100), // Log first 100 chars of query
+      modelPath
+    });
+
+    // Generate query embedding
+    const queryEmbeddings = await embedService.generateEmbeddings([query]);
+    logger.info('Query embeddings generated', { queryEmbeddings });
+    if (!queryEmbeddings || queryEmbeddings.length === 0) {
+      throw new Error('Failed to generate query embedding');
+    }
+
+    // Search for similar texts using the model path
+    const results = await faissService.search(queryEmbeddings[0], 5, modelPath);
+    if (!results || results.length === 0) {
+      return res.json({
+        answer: "I don't have any documents to search through yet. Please upload some documents first.",
+        matches: [],
+        status: "NO_DOCUMENTS"
+      });
+    }
+
+    // Get the most relevant text
+    const context = results.map(result => result.text).join('\n\n');
+
+    // Generate response using RAG
+    const finalResult = await ragService.generateResponse(query, context);
+
+    res.json({
       answer: finalResult,
       matches: results.map(result => ({
         text: result.text,
-        index: result.index, 
+        score: result.score,
         distance: result.distance
-      }))
+      })),
+      status: "SUCCESS"
     });
   } catch (error) {
-    console.error('Error in handleQuery:', error);
-    res.status(500).json({ error: 'Internal Server Error', details: error.message });
+    logger.error('Error in handleQuery', {
+      error: error.message,
+      stack: error.stack
+    });
+    res.status(500).json({ 
+      error: 'Internal Server Error', 
+      details: error.message 
+    });
   }
 };

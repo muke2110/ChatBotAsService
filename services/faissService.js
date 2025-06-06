@@ -4,224 +4,393 @@ const fs = require('fs');
 const fsPromises = require('fs').promises;
 const path = require('path');
 const { s3Client } = require('../config/aws');
-const { PutObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
+const { 
+  PutObjectCommand, 
+  GetObjectCommand, 
+  DeleteObjectCommand,
+  ListObjectsCommand 
+} = require('@aws-sdk/client-s3');
 const { pipeline } = require('stream');
 const util = require('util');
-require('dotenv').config();
-
+const logger = require('../utils/logger');
+const NodeCache = require('node-cache');
+const { ApiError } = require('../utils/apiError');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 
 const pipelineAsync = util.promisify(pipeline);
-let localPath;
-let textsPath;
-let index = null;
-let storedTexts = []; // In-memory storage for texts
 
-exports.addToIndex = async (texts, embeddings, s3BucketLocation) => {
-  localPath = path.join(__dirname, '..', 'index', `${s3BucketLocation}`, process.env.FAISS_INDEX_FILE);
-  textsPath = path.join(__dirname, '..', 'index', `${s3BucketLocation}`, process.env.FAISS_TEXT_FILE); // Path for storing texts temp
-  if (!embeddings || !Array.isArray(embeddings) || embeddings.length === 0) {
-    throw new Error("Embeddings must be a non-empty array.");
-  }
-  if (!texts || !Array.isArray(texts) || texts.length !== embeddings.length) {
-    throw new Error(`Texts array must match embeddings length: got ${texts?.length}, expected ${embeddings.length}`);
-  }
+// Cache configuration
+const indexCache = new NodeCache({
+  stdTTL: 3600, // Cache for 1 hour
+  checkperiod: 120, // Check for expired keys every 2 minutes
+  useClones: false, // Store references to save memory
+  maxKeys: 100 // Maximum number of indices to cache
+});
 
-  const dimension = embeddings[0].length;
-  const expectedDimension = 1024; // Match amazon.titan-embed-text-v2:0
-  if (!dimension || dimension === 0 || dimension !== expectedDimension) {
-    throw new Error(`Expected embedding dimension ${expectedDimension}, got ${dimension}`);
+class FaissService {
+  constructor() {
+    this.tempDir = path.join(process.cwd(), 'temp');
+    // Ensure temp directory exists
+    fs.mkdirSync(this.tempDir, { recursive: true });
+    logger.info('FAISS service initialized', { tempDir: this.tempDir });
   }
 
-  // Validate embeddings
-  const isValid = embeddings.every(e =>
-    Array.isArray(e) &&
-    e.length === dimension &&
-    e.every(val => typeof val === 'number' && !isNaN(val) && isFinite(val))
-  );
-  if (!isValid) {
-    throw new Error("Invalid embeddings: Must be a 2D array of valid numbers.");
+  async createIndex(vectors, dimension) {
+    try {
+      logger.info('Creating new FAISS index', { dimension });
+      const index = new faiss.IndexFlatL2(dimension);
+      await index.add(vectors);
+      return index;
+    } catch (error) {
+      logger.error('Failed to create FAISS index', { error, dimension });
+      throw new ApiError(500, 'Failed to create vector index');
+    }
   }
 
-  // Initialize index if not already or if dimension mismatch
-  if (!index || index.dimension !== dimension) {
-    index = new faiss.IndexFlatL2(dimension);
-    storedTexts = []; // Reset texts when initializing new index
+  async saveIndex(index, modelPath) {
+    try {
+      console.log("Starting index save...");
+      const indexPath = path.join(this.tempDir, `${modelPath.replace(/\//g, '_')}_latest.index`);
+      console.log("Writing index to temp file:", indexPath);
+      
+      try {
+        await index.write(indexPath); // Use instance write() method
+        console.log("Index written to temp file");
+      } catch (error) {
+        console.error("Error writing index to temp file:", error);
+        throw error;
+      }
+
+      const s3Key = `${modelPath}/index/latest.index`;
+      console.log("Preparing S3 upload with bucket:", process.env.AWS_S3_BUCKET, "key:", s3Key);
+
+      try {
+        const fileStream = fs.createReadStream(indexPath);
+        const command = new PutObjectCommand({
+          Bucket: process.env.AWS_S3_BUCKET,
+          Key: s3Key,
+          Body: fileStream,
+          ContentType: 'application/octet-stream'
+        });
+
+        console.log("Sending S3 upload command...");
+        await s3Client.send(command);
+        console.log("Index uploaded to S3 successfully");
+      } catch (error) {
+        console.error("Error uploading to S3:", error);
+        throw error;
+      }
+
+      try {
+        // Cleanup temp file
+        fs.unlinkSync(indexPath);
+        console.log("Temp file cleaned up");
+      } catch (error) {
+        console.error("Error cleaning up temp file:", error);
+        // Don't throw here, as the upload was successful
+      }
+
+      logger.info(`Index saved for location ${modelPath}`);
+    } catch (error) {
+      console.error("Error in saveIndex:", error);
+      logger.error('Failed to save index', { 
+        error: error.message, 
+        stack: error.stack,
+        location: modelPath,
+        bucket: process.env.AWS_S3_BUCKET
+      });
+      throw new ApiError(500, `Failed to save vector index: ${error.message}`);
+    }
   }
 
-  // Store texts and add embeddings
-  // console.log("Adding to index: num vectors =", embeddings.length, "dimension =", dimension);
-  // console.log("Sample embedding[0]:", embeddings[0].slice(0, 10));
+  async loadIndex(modelPath, version = 'latest') {
+    try {
+      const cacheKey = `${modelPath}_${version}`;
+      
+      // Check cache first
+      const cachedIndex = indexCache.get(cacheKey);
+      if (cachedIndex) {
+        logger.info('Index loaded from cache', { modelPath, version });
+        return {
+          index: cachedIndex.index,
+          texts: cachedIndex.texts
+        };
+      }
 
-  for (let i = 0; i < embeddings.length; i++) {
-    // console.log(`Adding vector ${i + 1}/${embeddings.length}`);
-    index.add(embeddings[i]); // Add single 1D array
-    storedTexts.push(texts[i]); // Store corresponding text
+      logger.info('Loading index from S3', { modelPath, version });
+      const s3Key = `${modelPath}/index/${version}.index`;
+      const tempPath = path.join(this.tempDir, `${cacheKey}.index`);
+
+      try {
+        // Download index from S3
+        const command = new GetObjectCommand({
+          Bucket: process.env.AWS_S3_BUCKET,
+          Key: s3Key
+        });
+
+        logger.info('Downloading index file', { bucket: process.env.AWS_S3_BUCKET, key: s3Key });
+        const response = await s3Client.send(command);
+        
+        // Ensure temp directory exists
+        await fsPromises.mkdir(path.dirname(tempPath), { recursive: true });
+        
+        logger.info('Writing index to temp file', { tempPath });
+        await pipelineAsync(
+          response.Body,
+          fs.createWriteStream(tempPath)
+        );
+
+        // Load index
+        logger.info('Reading index from temp file');
+        const index = await faiss.IndexFlatL2.read(tempPath); // Use static read() method
+        logger.info('Index loaded successfully', { dimension: 1024 });
+
+        // Load texts
+        logger.info('Loading associated texts');
+        const texts = await this.loadTexts(modelPath, version);
+        logger.info('Texts loaded successfully');
+
+        // Cache the index and texts
+        indexCache.set(cacheKey, { index, texts });
+        logger.info('Index and texts cached');
+
+        // Cleanup temp file
+        try {
+          await fsPromises.unlink(tempPath);
+          logger.info('Temp file cleaned up');
+        } catch (cleanupError) {
+          logger.warn('Failed to cleanup temp file', { error: cleanupError, tempPath });
+        }
+
+        logger.info('Index loaded from S3', { modelPath, version });
+        return { index, texts };
+      } catch (error) {
+        // Clean up temp file if it exists
+        try {
+          if (fs.existsSync(tempPath)) {
+            await fsPromises.unlink(tempPath);
+          }
+        } catch (cleanupError) {
+          logger.warn('Failed to cleanup temp file after error', { error: cleanupError, tempPath });
+        }
+
+        // Rethrow the original error
+        throw error;
+      }
+    } catch (error) {
+      logger.error('Failed to load index', { 
+        error: {
+          message: error.message,
+          code: error.Code,
+          name: error.name,
+          stack: error.stack
+        }, 
+        modelPath, 
+        version 
+      });
+      throw error;
+    }
   }
 
-  // Storing in local REMOVE LATER
-  await this.saveIndexToFile();
-  await this.saveTextsToFile();
+  async loadTexts(modelPath, version = 'latest') {
+    try {
+      logger.info('Loading texts from S3', { modelPath, version });
+      const s3Key = `${modelPath}/texts/${version}.json`;
+      const command = new GetObjectCommand({
+        Bucket: process.env.AWS_S3_BUCKET,
+        Key: s3Key
+      });
 
-  // Uploading to s3 storage
-  await this.uploadIndexToS3(s3BucketLocation);
-  await this.uploadTextsToS3(s3BucketLocation);
-};
-
-// Local
-exports.saveIndexToFile = async () => {
-  if (!index) throw new Error("FAISS index not initialized");
-  const dir = path.dirname(localPath);
-  await fsPromises.mkdir(dir, { recursive: true }); // Ensure directory exists
-  // console.log("Saving index to:", localPath);
-  index.write(localPath);
-  // console.log("Index saved successfully");
-};
-
-// Local
-exports.saveTextsToFile = async () => {
-  // console.log("Saving texts to:", textsPath);
-  const dir = path.dirname(textsPath);
-  await fsPromises.mkdir(dir, { recursive: true }); // Ensure directory exists
-  fs.writeFileSync(textsPath, JSON.stringify(storedTexts, null, 2));
-  // console.log("Texts saved successfully");
-};
-
-// Storing in s3
-exports.uploadIndexToS3 = async (s3BucketLocation) => {
-  const fileStream = fs.createReadStream(localPath);
-  const command = new PutObjectCommand({
-    Bucket: process.env.S3_BUCKET_NAME,
-    Key: `${s3BucketLocation}/${process.env.FAISS_S3_PATH}`, // Make this dynamic so that it stores in respected clients bucket
-    Body: fileStream
-  });
-  // console.log("Uploading index to S3:", process.env.FAISS_S3_PATH);
-  await s3Client.send(command);
-  // console.log("Index uploaded to S3 successfully");
-  await fs.promises.unlink(localPath);
-  // console.log("unlinked index succefully");
-};
-
-// Storing in s3
-exports.uploadTextsToS3 = async (s3BucketLocation) => {
-  const fileStream = fs.createReadStream(textsPath);
-  const command = new PutObjectCommand({
-    Bucket: process.env.S3_BUCKET_NAME,
-    Key:  `${s3BucketLocation}/${process.env.FAISS_TEXT_PATH}`, // Make this dynamic so that it stores in respected clients bucket
-    Body: fileStream
-  });
-  // console.log("Uploading texts to S3: faiss/texts.json");
-  await s3Client.send(command);
-  // console.log("Texts uploaded to S3 successfully");
-  await fs.promises.unlink(textsPath);
-  // console.log("unlinked text succefully");
-
-};
-
-exports.loadIndexFromS3 = async (s3BucketLocation) => {
-  try {
-    const command = new GetObjectCommand({
-      Bucket: process.env.S3_BUCKET_NAME,
-      Key: `${s3BucketLocation}/${process.env.FAISS_S3_PATH}`,
-    });
-
-    const response = await s3Client.send(command);
-
-    // Create a temp file to store the FAISS index
-    const tempIndexPath = path.join(os.tmpdir(), `faiss-index-${Date.now()}.index`);
-
-    const writeStream = fs.createWriteStream(tempIndexPath);
-    await pipelineAsync(response.Body, writeStream);
-
-    // console.log("Loading index from:", tempIndexPath);
-    const index = faiss.IndexFlatL2.read(tempIndexPath);
-
-    // console.log("Index loaded: dimension =", index.getDimension(), "ntotal =", index.ntotal());
-
-    // Delete the temp file after reading
-    await fs.promises.unlink(tempIndexPath);
-
-    // Load texts for in-memory search
-    // await this.loadTextsFromS3(s3BucketLocation);
-
-    // Return the index
-    return index;
-  } catch (error) {
-    console.error("Error loading index from S3:", error);
-    throw new Error("Failed to load FAISS index from S3: " + error.message);
-  }
-};
-
-exports.loadTextsFromS3 = async (s3BucketLocation) => {
-  try {
-    const command = new GetObjectCommand({
-      Bucket: process.env.S3_BUCKET_NAME,
-      Key: `${s3BucketLocation}/${process.env.FAISS_TEXT_PATH}`,
-    });
-
-    const response = await s3Client.send(command);
-
-    // console.log("Loading texts from:", `${s3BucketLocation}/${process.env.FAISS_TEXT_PATH}`);
-    const bodyString = await streamToString(response.Body);
-    const storedTexts = JSON.parse(bodyString);
-
-    // console.log("Texts loaded: count =", storedTexts.length);
-    // console.log("stored text");
-    
-    return storedTexts;
-  } catch (error) {
-    console.error("Error loading texts from S3:", error);
-    throw new Error("Failed to load texts from S3: " + error.message);
-  }
-};
-
-
-const streamToString = async (stream) => {
-  return await new Promise((resolve, reject) => {
-    const chunks = [];
-    stream.on("data", (chunk) => chunks.push(chunk));
-    stream.on("error", reject);
-    stream.on("end", () => resolve(Buffer.concat(chunks).toString("utf-8")));
-  });
-};
-
-
-
-exports.search = async(s3BucketLocation, index, queryEmbedding, k = 5) => {
-  if (!index) throw new Error("FAISS index is not loaded");
-  let storedTexts = await this.loadTextsFromS3(s3BucketLocation) 
-  if (!storedTexts || storedTexts.length === 0) throw new Error("No texts available for search results");
-
-  // Validate queryEmbedding
-  if (!Array.isArray(queryEmbedding) || queryEmbedding.length !== 1024) {
-    throw new Error(`Invalid query embedding: Expected 1024-dimensional array, got length ${queryEmbedding.length}`);
-  }
-  if (!queryEmbedding.every(val => typeof val === 'number' && !isNaN(val) && isFinite(val))) {
-    throw new Error("Invalid query embedding: Contains NaN, undefined, or non-numeric values");
+      logger.info('Downloading texts file', { bucket: process.env.AWS_S3_BUCKET, key: s3Key });
+      const response = await s3Client.send(command);
+      const textsBuffer = await response.Body.transformToString();
+      const texts = JSON.parse(textsBuffer);
+      logger.info('Texts loaded successfully', { textCount: texts.length });
+      return texts;
+    } catch (error) {
+      logger.error('Failed to load texts', { 
+        error: {
+          message: error.message,
+          code: error.Code,
+          name: error.name,
+          stack: error.stack
+        }, 
+        modelPath, 
+        version 
+      });
+      throw error;
+    }
   }
 
-  // Log query embedding for debugging
-  // console.log("Query embedding length:", queryEmbedding.length);
-  // console.log("Query embedding sample:", queryEmbedding.slice(0, 10));
+  async search(queryVector, k = 5, modelPath) {
+    try {
+      logger.info('Starting vector search', { modelPath, k });
 
-  // Pass queryEmbedding as a 2D JavaScript array
-  const result = index.search(queryEmbedding, k);
-  // console.log("Search result:", result);
+      // Validate input
+      if (!queryVector || !Array.isArray(queryVector)) {
+        throw new Error('Query vector must be an array');
+      }
 
-  // Validate result
-  if (!result.labels || !Array.isArray(result.labels) || result.labels.length !== k) {
-    throw new Error(`Invalid search result: Expected ${k} labels, got ${result.labels?.length || 0}`);
+      if (queryVector.length !== 1024) {
+        throw new Error(`Query vector must have 1024 dimensions, got ${queryVector.length}`);
+      }
+
+      // Try to load index and texts
+      try {
+        const { index, texts } = await this.loadIndex(modelPath);
+        logger.info('Index and texts loaded successfully');
+
+        // Perform search
+        logger.info('Performing vector search');
+        const { distances, labels } = await index.search(queryVector, k);
+        logger.info('Search completed');
+
+        // Map results to include texts
+        const results = [];
+        for (let i = 0; i < labels.length; i++) {
+          if (labels[i] >= 0) { // Skip invalid indices
+            results.push({
+              text: texts[labels[i]],
+              score: 1 / (1 + distances[i]), // Convert distance to similarity score
+              index: labels[i],
+              distance: distances[i]
+            });
+          }
+        }
+
+        logger.info('Search results processed', { numResults: results.length });
+        return results;
+      } catch (error) {
+        // If the error is NoSuchKey, it means no index exists yet
+        if (error.Code === 'NoSuchKey') {
+          logger.info('No index exists yet for this model path', { modelPath });
+          return [];
+        }
+        throw error;
+      }
+    } catch (error) {
+      logger.error('Failed to perform vector search', { 
+        error: {
+          message: error.message,
+          code: error.Code,
+          name: error.name,
+          stack: error.stack
+        }, 
+        modelPath 
+      });
+      throw new ApiError(500, `Failed to perform vector search: ${error.message}`);
+    }
   }
-  if (!result.distances || !Array.isArray(result.distances) || result.distances.length !== k) {
-    throw new Error(`Invalid search result: Expected ${k} distances, got ${result.distances?.length || 0}`);
+
+  async addToIndex(texts, embeddings, modelPath) {
+    try {
+      console.log("Adding to index:: ");
+      
+      if (!embeddings || !Array.isArray(embeddings) || embeddings.length === 0) {
+        throw new Error("Embeddings must be a non-empty array.");
+      }
+      if (!texts || !Array.isArray(texts) || texts.length !== embeddings.length) {
+        throw new Error(`Texts array must match embeddings length: got ${texts?.length}, expected ${embeddings.length}`);
+      }
+
+      const dimension = embeddings[0].length;
+      const expectedDimension = 1024; // Match AWS Bedrock Titan model's dimension
+      if (!dimension || dimension === 0 || dimension !== expectedDimension) {
+        throw new Error(`Expected embedding dimension ${expectedDimension}, got ${dimension}`);
+      }
+
+      console.log("Validating embeddings:: ");
+      
+      // Validate embeddings
+      const isValid = embeddings.every(e =>
+        Array.isArray(e) &&
+        e.length === dimension &&
+        e.every(val => typeof val === 'number' && !isNaN(val) && isFinite(val))
+      );
+      if (!isValid) {
+        throw new Error("Invalid embeddings: Must be a 2D array of valid numbers.");
+      }
+      console.log("Validating embeddings:: ", isValid);
+      
+      // Create new index
+      console.log("Creating FAISS index with dimension:", dimension);
+      const index = new faiss.IndexFlatL2(dimension);
+      console.log("FAISS index created successfully");
+
+      // Add embeddings
+      console.log("Adding embeddings to index...");
+      for (let i = 0; i < embeddings.length; i++) {
+        try {
+          await index.add(embeddings[i]);
+          console.log(`Added embedding ${i + 1}/${embeddings.length}`);
+        } catch (error) {
+          console.error(`Failed to add embedding ${i + 1}:`, error);
+          throw error;
+        }
+      }
+      console.log("All embeddings added to index");
+
+      // Save index and texts
+      console.log("Saving index to S3...");
+      await this.saveIndex(index, modelPath);
+      console.log("Index saved to S3");
+
+      console.log("Saving texts to S3...");
+      await this.saveTexts(texts, modelPath);
+      console.log("Texts saved to S3");
+
+      // Update cache
+      console.log("Updating cache...");
+      indexCache.set(modelPath, { index, texts });
+      console.log("Cache updated");
+
+      logger.info(`Successfully added ${embeddings.length} vectors to index`, {
+        dimension,
+        location: modelPath
+      });
+    } catch (error) {
+      console.error("Error in addToIndex:", error);
+      logger.error('Failed to add to index', { error, location: modelPath });
+      throw new ApiError(500, 'Failed to add vectors to index');
+    }
   }
 
-  // Map indices to text chunks
-  // return result.labels.map((idx, i) => ({
-  //   index: idx,
-  //   text: storedTexts[idx] || "Text not found",
-  //   distance: result.distances[i]
-  // }));
-  return result.labels.map((idx, i) => ({
-    text: storedTexts[idx] || "Text not found",
-  }));
-};
+  async saveTexts(texts, modelPath) {
+    try {
+      console.log("Starting texts save...");
+      const s3Key = `${modelPath}/texts/latest.json`;
+      console.log("Preparing S3 upload for texts with bucket:", process.env.AWS_S3_BUCKET, "key:", s3Key);
+
+      const command = new PutObjectCommand({
+        Bucket: process.env.AWS_S3_BUCKET,
+        Key: s3Key,
+        Body: JSON.stringify(texts),
+        ContentType: 'application/json'
+      });
+
+      console.log("Sending S3 upload command for texts...");
+      await s3Client.send(command);
+      console.log("Texts uploaded to S3 successfully");
+
+      logger.info('Texts saved to S3', { location: modelPath });
+    } catch (error) {
+      console.error("Error in saveTexts:", error);
+      logger.error('Failed to save texts', { 
+        error: error.message, 
+        stack: error.stack,
+        location: modelPath,
+        bucket: process.env.AWS_S3_BUCKET
+      });
+      throw new ApiError(500, `Failed to save texts: ${error.message}`);
+    }
+  }
+
+  clearCache() {
+    indexCache.flushAll();
+    logger.info('Index cache cleared');
+  }
+}
+
+// Export a singleton instance
+const faissService = new FaissService();
+module.exports = faissService;

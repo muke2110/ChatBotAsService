@@ -1,104 +1,239 @@
-const razorpay = require('../config/razorpay');
-const Payment = require('../models/payment.model');
-const User = require('../models/user.model');
+const { Payment, Plan, UserPlan } = require('../models');
+const Razorpay = require('razorpay');
 const crypto = require('crypto');
+const logger = require('../utils/logger');
 
-exports.createOrder = async (req, res) => {
-  try {
-    const { amount, userId } = req.body;
-    // console.log(req.body);
-    
-    const options = {
-      amount,
-      currency: 'INR',
-      receipt: `receipt_order_${Date.now()}`,
-    };
+// Check for required environment variables
+if (!process.env.RAZORPAY_KEY || !process.env.RAZORPAY_SECRET) {
+    logger.error('Razorpay credentials are not configured. Please set RAZORPAY_KEY and RAZORPAY_SECRET in your environment variables.');
+    throw new Error('Razorpay configuration missing');
+}
 
-    const order = await razorpay.orders.create(options);
+const razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY,
+    key_secret: process.env.RAZORPAY_SECRET
+});
 
-    // await Payment.create({
-    //   userId,
-    //   orderId: order.id,
-    //   amount,
-    //   status: 'created'
-    // });
-    
+const createOrder = async (req, res) => {
     try {
-      await Payment.create({
-      userId,
-      orderId: order.id,
-      amount,
-      status: 'created'
-    });
-    } catch (message) {
-      console.log("Error creating payment: ",message);
-    }
+        const { planId, billingCycle } = req.body;
 
-    res.json(order);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-exports.verifyPayment = async (req, res) => {
-  try {
-    const {
-      razorpay_order_id,
-      razorpay_payment_id,
-      razorpay_signature,
-      userId,
-    } = req.body;
-    // console.log("BODY: ",req.body);
-    
-    const secret = process.env.RAZORPAY_SECRET; // Razorpay secret from .env
-
-    // Create the expected signature
-    const expectedSignature = crypto
-      .createHmac('sha256', secret)
-      .update(razorpay_order_id + '|' + razorpay_payment_id)
-      .digest('hex');
-
-    if (expectedSignature !== razorpay_signature) {
-      return res.status(400).json({ error: 'Invalid signature, possible fraud detected!' });
-    }
-
-    // Update payment in DB as it is verified
-    await Payment.update(
-      {
-        paymentId: razorpay_payment_id,
-        status: 'paid',
-      },
-      {
-        where: { orderId: razorpay_order_id, userId },
-      }
-    );
-
-    res.json({ message: 'Payment verified and saved' });
-  } catch (err) {
-    console.error('Payment verification error:', err);
-    res.status(500).json({ error: err.message });
-  }
-};
-
-exports.failedPayment = async (req, res) => {
-  try {
-    const { orderId, userId, status } = req.body;
-    // console.log("FAILED BODY::: ", req.body);
-    
-    // Optional: check if already marked as failed
-    await Payment.update(
-      { status: status },
-      {
-        where: {
-          orderId: orderId,
-          userId: userId
+        if (!planId || !billingCycle) {
+            return res.status(400).json({ 
+                error: 'Missing required fields',
+                required: {
+                    planId: 'The ID of the plan you want to subscribe to',
+                    billingCycle: 'Either "monthly" or "yearly"'
+                }
+            });
         }
-      }
-    );
 
-    res.json({ message: 'Payment marked as failed' });
-  } catch (err) {
-    console.error('Failed payment error:', err);
-    res.status(500).json({ error: err.message });
-  }
+        // Validate plan
+        const plan = await Plan.findOne({
+            where: { id: planId, isActive: true }
+        });
+
+        if (!plan) {
+            return res.status(404).json({ error: 'Plan not found or inactive' });
+        }
+
+        // Calculate amount based on billing cycle
+        let amount = plan.price;
+        if (billingCycle === 'yearly') {
+            amount = plan.price * 12 * 0.8; // 20% discount for yearly
+        }
+
+        // Create Razorpay order
+        const order = await razorpay.orders.create({
+            amount: amount * 100, // Convert to paise
+            currency: 'INR',
+            receipt: `order_${Date.now()}`
+        });
+
+        // Save order details
+        const payment = await Payment.create({
+            userId: req.user.id,
+            planId: plan.id,
+            orderId: order.id,
+            amount: amount,
+            status: 'created',
+            billingCycle
+        });
+
+        res.json({
+            orderId: order.id,
+            amount: amount,
+            currency: 'INR',
+            planDetails: plan,
+            paymentId: payment.id,
+            key_id: process.env.RAZORPAY_KEY // Required for client-side integration
+        });
+
+    } catch (error) {
+        logger.error('Error creating order:', error);
+        res.status(500).json({ error: 'Failed to create order' });
+    }
+};
+
+const verifyPayment = async (req, res) => {
+    try {
+        const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+
+        // Validate required fields
+        if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+            return res.status(400).json({
+                error: 'Missing required fields',
+                required: {
+                    razorpay_order_id: 'Order ID from Razorpay',
+                    razorpay_payment_id: 'Payment ID from Razorpay',
+                    razorpay_signature: 'Signature from Razorpay'
+                }
+            });
+        }
+
+        // Verify payment signature
+        const body = razorpay_order_id + '|' + razorpay_payment_id;
+        const expectedSignature = crypto
+            .createHmac('sha256', process.env.RAZORPAY_SECRET)
+            .update(body.toString())
+            .digest('hex');
+
+        const isValid = expectedSignature === razorpay_signature;
+        if (!isValid) {
+            logger.error('Invalid payment signature', {
+                orderId: razorpay_order_id,
+                paymentId: razorpay_payment_id
+            });
+            return res.status(400).json({ error: 'Invalid payment signature' });
+        }
+
+        // Get payment record
+        const payment = await Payment.findOne({
+            where: { orderId: razorpay_order_id },
+            include: [{ model: Plan }]
+        });
+
+        if (!payment) {
+            return res.status(404).json({ error: 'Payment record not found' });
+        }
+
+        // Update payment status
+        payment.status = 'paid';
+        payment.paymentId = razorpay_payment_id;
+        await payment.save();
+
+        // Calculate subscription dates
+        const startDate = new Date();
+        const endDate = new Date();
+        if (payment.billingCycle === 'yearly') {
+            endDate.setFullYear(endDate.getFullYear() + 1);
+        } else {
+            endDate.setMonth(endDate.getMonth() + 1);
+        }
+
+        // Create or update user subscription
+        const [userPlan, created] = await UserPlan.findOrCreate({
+            where: { userId: req.user.id },
+            defaults: {
+                userId: req.user.id,
+                planId: payment.planId,
+                status: 'active',
+                startDate,
+                endDate,
+                currentStorageUsageGB: 0,
+                currentDocumentCount: 0,
+                queriesUsedToday: 0,
+                lastQueryReset: new Date(),
+                autoRenew: true
+            }
+        });
+
+        // If subscription exists, update it
+        if (!created) {
+            await userPlan.update({
+                planId: payment.planId,
+                status: 'active',
+                startDate,
+                endDate,
+                autoRenew: true
+            });
+        }
+
+        logger.info('Subscription activated', {
+            userId: req.user.id,
+            planId: payment.planId,
+            subscriptionId: userPlan.id
+        });
+
+        res.json({
+            success: true,
+            message: 'Payment verified and subscription activated',
+            subscription: {
+                plan: payment.Plan.name,
+                startDate,
+                endDate,
+                status: 'active'
+            }
+        });
+
+    } catch (error) {
+        logger.error('Error verifying payment:', error);
+        res.status(500).json({ 
+            error: 'Failed to verify payment',
+            details: error.message
+        });
+    }
+};
+
+const getPaymentStatus = async (req, res) => {
+    try {
+        const payment = await Payment.findOne({
+            where: {
+                id: req.params.paymentId,
+                userId: req.user.id
+            },
+            include: [{ model: Plan }]
+        });
+
+        if (!payment) {
+            return res.status(404).json({ error: 'Payment not found' });
+        }
+
+        res.json(payment);
+    } catch (error) {
+        logger.error('Error fetching payment status:', error);
+        res.status(500).json({ error: 'Failed to fetch payment status' });
+    }
+};
+
+const getPaymentHistory = async (req, res) => {
+    try {
+        const { page = 1, limit = 10 } = req.query;
+        const offset = (page - 1) * limit;
+
+        const payments = await Payment.findAndCountAll({
+            where: { userId: req.user.id },
+            include: [{ model: Plan }],
+            order: [['createdAt', 'DESC']],
+            limit: parseInt(limit),
+            offset: parseInt(offset)
+        });
+
+        res.json({
+            payments: payments.rows,
+            total: payments.count,
+            currentPage: parseInt(page),
+            totalPages: Math.ceil(payments.count / limit)
+        });
+    } catch (error) {
+        logger.error('Error fetching payment history:', error);
+        res.status(500).json({ error: 'Failed to fetch payment history' });
+    }
+};
+
+module.exports = {
+    createOrder,
+    verifyPayment,
+    getPaymentStatus,
+    getPaymentHistory
 };

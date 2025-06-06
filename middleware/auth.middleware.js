@@ -1,19 +1,35 @@
 const jwt = require('jsonwebtoken');
+const { ApiError } = require('../utils/apiError');
+const logger = require('../utils/logger');
 
-module.exports = function (req, res, next) {
-  const authHeader = req.headers['authorization'];
-
-  if (!authHeader) return res.status(401).json({ message: 'Missing token' });
-
-  const token = authHeader.split(' ')[1]; // Bearer <token>
-
-  if (!token) return res.status(403).json({ message: 'Token not found' });
-
+exports.authMiddleware = async (req, res, next) => {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch (err) {
-    return res.status(401).json({ message: 'Invalid token' });
+    const authHeader = req.headers['authorization'];
+
+    if (!authHeader) {
+      throw new ApiError(401, 'Missing authorization token');
+    }
+
+    const token = authHeader.split(' ')[1]; // Bearer <token>
+
+    if (!token) {
+      throw new ApiError(403, 'Token not found');
+    }
+
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      req.user = decoded;
+
+      logger.info('User authenticated', {
+        userId: decoded.id,
+        role: decoded.role
+      });
+
+      next();
+    } catch (err) {
+      throw new ApiError(401, 'Invalid token');
+    }
+  } catch (error) {
+    next(error);
   }
 };

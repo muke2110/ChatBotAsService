@@ -7,8 +7,8 @@ exports.register = async (req, res) => {
   try {
     const { fullName, email, password } = req.body;
     const hash = await bcrypt.hash(password, 10);
-    const user = await User.create({ fullName, email, password: hash });
-    const client = await Client.create({clientId: user.clientId, name: fullName})
+    const user = await User.create({ fullName, email, password: hash});
+    const client = await Client.create({userId: user.id, clientId: user.clientId, name: fullName})
     res.status(201).json({ message: 'User registered', user , client});
   } catch (err) {
     res.status(400).json({ error: err.message });
