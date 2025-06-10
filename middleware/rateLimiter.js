@@ -2,6 +2,7 @@ const rateLimit = require('express-rate-limit');
 const { ApiError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const UserPlan = require('../models/userPlan.model');
+const Plan = require('../models/plan.model');
 
 // Create a store to track API usage per client
 const apiUsageStore = new Map();
@@ -36,22 +37,22 @@ const planBasedRateLimiter = async (req, res, next) => {
     if (!clientId) {
       throw new ApiError(401, 'Client ID not found');
     }
-    console.log(req.user.id);
+    const userId = req.user.id;
     
-    // Get client's active subscription
-    const userPlan = await UserPlan.findOne({
-      where: {
-        userId: req.user.id,
-        status: 'active'
-      },
-      include: ['Plan']
+    // Get userPlan with associated Plan details
+    const userPlan = await UserPlan.findOne({ 
+      where: { userId: userId },
+      include: [{
+        model: Plan,
+        attributes: ['maxQueriesPerMonth', 'maxStorageMB']
+      }]
     });
 
-    if (!userPlan) {
-      throw new ApiError(403, 'No active subscription found');
+    if (!userPlan || !userPlan.Plan) {
+      throw new ApiError(403, 'No active plan found');
     }
 
-    const maxQueriesPerDay = userPlan.Plan.maxQueriesPerDay;
+    const maxQueriesPerDay = userPlan.Plan.maxQueriesPerMonth / 30; // Convert monthly to daily
     const currentDate = new Date().toDateString();
     const usageKey = `${clientId}_${currentDate}`;
 
@@ -79,8 +80,8 @@ const planBasedRateLimiter = async (req, res, next) => {
     });
 
     // Add rate limit info to response headers
-    res.setHeader('X-RateLimit-Limit', maxQueriesPerDay);
-    res.setHeader('X-RateLimit-Remaining', maxQueriesPerDay - (usage + 1));
+    res.setHeader('X-RateLimit-Limit', Math.floor(maxQueriesPerDay));
+    res.setHeader('X-RateLimit-Remaining', Math.floor(maxQueriesPerDay - (usage + 1)));
     res.setHeader('X-RateLimit-Reset', new Date(new Date().setHours(24, 0, 0, 0)).getTime());
 
     next();
@@ -92,32 +93,35 @@ const planBasedRateLimiter = async (req, res, next) => {
 // Middleware to check storage limits
 const storageLimitChecker = async (req, res, next) => {
   try {
-    const userPlan = await UserPlan.findOne({
-      where: {
-        userId: req.user.id,
-        status: 'active'
-      },
-      include: ['Plan']
+    const userId = req.user.id;
+    
+    // Get userPlan with associated Plan details
+    const userPlan = await UserPlan.findOne({ 
+      where: { userId: userId },
+      include: [{
+        model: Plan,
+        attributes: ['maxQueriesPerMonth', 'maxStorageMB']
+      }]
     });
 
-    if (!userPlan) {
-      throw new ApiError(403, 'No active subscription found');
+    if (!userPlan || !userPlan.Plan) {
+      throw new ApiError(403, 'No active plan found');
     }
 
-    const maxStorageGB = userPlan.Plan.maxStorageGB;
-    const currentStorageGB = userPlan.currentStorageUsageGB;
+    const maxStorageMB = userPlan.Plan.maxStorageMB;
+    const currentStorageMB = userPlan.currentStorageUsageGB * 1024; // Convert GB to MB
 
-    logger.info(`Current storage usage: ${currentStorageGB} GB, Max storage: ${maxStorageGB} GB`);
+    logger.info(`Current storage usage: ${currentStorageMB} MB, Max storage: ${maxStorageMB} MB`);
 
-    if (currentStorageGB >= maxStorageGB) {
+    if (currentStorageMB >= maxStorageMB) {
       throw new ApiError(429, 'Storage limit exceeded. Please upgrade your plan for more storage.');
     }
 
-    // Add file size check if request contains file
-    if (req.file) {
-      const fileSizeGB = req.file.size / (1024 * 1024 * 1024);
-      if (currentStorageGB + fileSizeGB > maxStorageGB) {
-        throw new ApiError(429, 'This file would exceed your storage limit. Please free up space or upgrade your plan.');
+    // Add file size check if request contains files
+    if (req.files && req.files.length > 0) {
+      const totalFileSizeMB = req.files.reduce((acc, file) => acc + (file.size / (1024 * 1024)), 0);
+      if (currentStorageMB + totalFileSizeMB > maxStorageMB) {
+        throw new ApiError(429, 'These files would exceed your storage limit. Please free up space or upgrade your plan.');
       }
     }
 

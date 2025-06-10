@@ -4,6 +4,7 @@ const embedController = require('../controllers/embedController');
 const { authMiddleware } = require('../middleware/auth.middleware');
 const { clientIdMiddleware } = require('../middleware/clientId.middleware');
 const { planBasedRateLimiter, storageLimitChecker } = require('../middleware/rateLimiter');
+const { verifyActivePlan } = require('../middleware/planVerification.middleware');
 
 const router = express.Router();
 
@@ -31,9 +32,10 @@ router.post(
   '/upload',
   clientIdMiddleware,
   authMiddleware,
-  planBasedRateLimiter,
-  storageLimitChecker,
+  verifyActivePlan,
   upload.array('files', 5),
+  storageLimitChecker,
+  planBasedRateLimiter,
   embedController.uploadAndEmbedFiles
 );
 
@@ -41,6 +43,8 @@ router.post(
 router.post(
   '/query',
   clientIdMiddleware,
+  authMiddleware,
+  verifyActivePlan,
   planBasedRateLimiter,
   embedController.queryEmbeddings
 );
@@ -50,6 +54,7 @@ router.get(
   '/status',
   clientIdMiddleware,
   authMiddleware,
+  verifyActivePlan,
   embedController.getEmbeddingStatus
 );
 
@@ -57,6 +62,7 @@ router.delete(
   '/files/:fileId',
   clientIdMiddleware,
   authMiddleware,
+  verifyActivePlan,
   embedController.deleteEmbeddedFile
 );
 

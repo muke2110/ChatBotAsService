@@ -1,55 +1,95 @@
-const { Plan } = require('../models');
+const Plan  = require('../models/plan.model');
+const { v4: uuidv4 } = require('uuid');
 
 const plans = [
     {
-        name: 'Basic',
-        description: 'Perfect for small businesses and startups',
-        price: 999, // ₹999
+        id: uuidv4(),
+        name: 'Starter',
+        description: 'For small websites & startups',
+        price: 799,
         billingCycle: 'monthly',
         features: {
-            support: 'Email',
-            customization: false,
-            analytics: false
+            chatbotWidgets: 1,
+            documentTokens: 5000,
+            queriesPerMonth: 500,
+            vectorStorage: '50MB',
+            analytics: 'Basic analytics (daily active users, queries used)',
+            support: 'Email support',
+            idealFor: 'Startups, blogs, early-stage SaaS tools with limited documentation'
         },
-        maxDocuments: 50,
-        maxStorageGB: 1,
-        maxQueriesPerDay: 100,
-        maxTokensPerQuery: 1000
+        maxDocumentTokens: 5000,
+        maxQueriesPerMonth: 500,
+        maxStorageMB: 50,
+        maxChatbotWidgets: 1,
+        supportedFileTypes: ['PDF', 'TXT', 'Markdown'],
+        supportLevel: 'email',
+        analyticsLevel: 'basic',
+        isCustomBranding: false,
+        isTeamFeatures: false,
+        isActive: true
     },
     {
-        name: 'Professional',
-        description: 'Ideal for growing businesses',
-        price: 2999, // ₹2,999
+        id: uuidv4(),
+        name: 'Pro',
+        description: 'For growing businesses',
+        price: 1999,
         billingCycle: 'monthly',
         features: {
-            support: '24/7 Email & Chat',
-            customization: true,
-            analytics: true
+            chatbotWidgets: 2,
+            documentTokens: 30000,
+            queriesPerMonth: 5000,
+            vectorStorage: '250MB',
+            analytics: 'Advanced analytics (top queries, usage heatmap)',
+            support: 'Priority Email & Slack support',
+            customBranding: true,
+            queryForwarding: true,
+            idealFor: 'Growing companies, SaaS products, EdTech, Agencies'
         },
-        maxDocuments: 200,
-        maxStorageGB: 5,
-        maxQueriesPerDay: 500,
-        maxTokensPerQuery: 2000
+        maxDocumentTokens: 30000,
+        maxQueriesPerMonth: 5000,
+        maxStorageMB: 250,
+        maxChatbotWidgets: 2,
+        supportedFileTypes: ['PDF', 'DOCX', 'TXT', 'Markdown'],
+        supportLevel: 'priority',
+        analyticsLevel: 'advanced',
+        isCustomBranding: true,
+        isTeamFeatures: false,
+        isActive: true
     },
     {
+        id: uuidv4(),
         name: 'Enterprise',
-        description: 'For large organizations with custom needs',
-        price: 9999, // ₹9,999
+        description: 'For scale-ups & teams',
+        price: 4999,
         billingCycle: 'monthly',
         features: {
-            support: 'Priority 24/7',
-            customization: true,
-            analytics: true,
-            dedicated: true
+            chatbotWidgets: 3, // Unlimited
+            documentTokens: 100000,
+            queriesPerMonth: 20000,
+            vectorStorage: '1GB',
+            analytics: 'Advanced dashboard & custom reporting',
+            support: 'SLA-backed support',
+            customBranding: true,
+            llmTuning: true,
+            ssoLogin: true,
+            integrations: true,
+            dedicatedManager: true,
+            idealFor: 'Midsize to large orgs, SaaS scale-ups, universities, help desks'
         },
-        maxDocuments: 1000,
-        maxStorageGB: 20,
-        maxQueriesPerDay: 2000,
-        maxTokensPerQuery: 4000
+        maxDocumentTokens: 100000,
+        maxQueriesPerMonth: 20000,
+        maxStorageMB: 1024, // 1GB
+        maxChatbotWidgets: 3, // Unlimited
+        supportedFileTypes: ['PDF', 'DOCX', 'TXT', 'Markdown', 'CSV', 'JSON'],
+        supportLevel: 'dedicated',
+        analyticsLevel: 'custom',
+        isCustomBranding: true,
+        isTeamFeatures: true,
+        isActive: true
     }
 ];
 
-async function seedPlans() {
+const seedPlans = async () => {
     try {
         // Create plans if they don't exist
         for (const plan of plans) {
@@ -62,6 +102,6 @@ async function seedPlans() {
     } catch (error) {
         console.error('Error seeding plans:', error);
     }
-}
+};
 
 module.exports = seedPlans; 

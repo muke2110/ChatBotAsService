@@ -1,7 +1,5 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
-const User = require('./user.model');
-const Plan = require('./plan.model');
 
 const Payment = sequelize.define('Payment', {
   id: {
@@ -80,10 +78,5 @@ const Payment = sequelize.define('Payment', {
     }
   ]
 });
-
-User.hasMany(Payment, { foreignKey: 'userId' });
-Payment.belongsTo(User, { foreignKey: 'userId' });
-Plan.hasMany(Payment, { foreignKey: 'planId' });
-Payment.belongsTo(Plan, { foreignKey: 'planId' });
 
 module.exports = Payment;

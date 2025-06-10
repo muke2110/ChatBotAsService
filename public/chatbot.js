@@ -3,9 +3,9 @@ class ChatbotService {
     if (!config.clientId) {
       throw new Error('Client ID is required');
     }
-
+    console.log("config::: ", config);
     this.clientId = config.clientId;
-    this.apiUrl = config.apiUrl || 'https://api.yourdomain.com/api/v1';
+    this.apiUrl = config.apiUrl || 'https://localhost:3000/api/v1';
     this.position = config.position || 'bottom-right';
     this.theme = config.theme || {
       primaryColor: '#007bff',
@@ -29,10 +29,14 @@ class ChatbotService {
       flex-direction: column;
     `;
 
-    // Create chat button
+    // Create chat button with SVG icon
     this.button = document.createElement('button');
     this.button.id = 'chatbot-button';
-    this.button.innerHTML = '💬';
+    this.button.innerHTML = `
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M20 2H4C2.9 2 2 2.9 2 4V22L6 18H20C21.1 18 22 17.1 22 16V4C22 2.9 21.1 2 20 2ZM20 16H6L4 18V4H20V16Z" fill="white"/>
+      </svg>
+    `;
     this.button.style.cssText = `
       width: 60px;
       height: 60px;
@@ -44,6 +48,10 @@ class ChatbotService {
       cursor: pointer;
       box-shadow: 0 2px 10px rgba(0,0,0,0.2);
       align-self: flex-end;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s ease;
     `;
 
     // Create chat window

@@ -4,3 +4,6 @@ node_modules
 /public/testing.html
 /uploads/*
 postman_collection.json
+
+/frontend/node_modules
+/frontend/package-lock.json

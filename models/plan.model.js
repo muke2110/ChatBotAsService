@@ -15,7 +15,7 @@ const Plan = sequelize.define('Plan', {
     type: DataTypes.TEXT
   },
   price: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.INTEGER,  // Price in INR
     allowNull: false
   },
   billingCycle: {
@@ -26,21 +26,41 @@ const Plan = sequelize.define('Plan', {
     type: DataTypes.JSON,
     defaultValue: {}
   },
-  maxDocuments: {
+  maxDocumentTokens: {
     type: DataTypes.INTEGER,
     allowNull: false
   },
-  maxStorageGB: {
+  maxQueriesPerMonth: {
     type: DataTypes.INTEGER,
     allowNull: false
   },
-  maxQueriesPerDay: {
+  maxStorageMB: {
     type: DataTypes.INTEGER,
     allowNull: false
   },
-  maxTokensPerQuery: {
+  maxChatbotWidgets: {
     type: DataTypes.INTEGER,
     allowNull: false
+  },
+  supportedFileTypes: {
+    type: DataTypes.JSON,
+    defaultValue: []
+  },
+  supportLevel: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  analyticsLevel: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  isCustomBranding: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
+  isTeamFeatures: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
   },
   isActive: {
     type: DataTypes.BOOLEAN,

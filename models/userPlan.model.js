@@ -1,6 +1,5 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
-const User = require('./user.model');
 const Plan = require('./plan.model');
 
 const UserPlan = sequelize.define('UserPlan', {
@@ -70,10 +69,5 @@ const UserPlan = sequelize.define('UserPlan', {
     }
   }
 });
-
-User.hasMany(UserPlan, { foreignKey: 'userId' });
-UserPlan.belongsTo(User, { foreignKey: 'userId' });
-Plan.hasMany(UserPlan, { foreignKey: 'planId' });
-UserPlan.belongsTo(Plan, { foreignKey: 'planId' });
 
 module.exports = UserPlan;

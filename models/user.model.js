@@ -1,6 +1,7 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 const { v4: uuidv4 } = require('uuid');
+const jwt = require('jsonwebtoken');
 
 const User = sequelize.define('User', {
   id: {
@@ -14,23 +15,47 @@ const User = sequelize.define('User', {
     unique: true,
     allowNull: false,
   },
-  password: DataTypes.STRING,
+  password: {
+    type: DataTypes.STRING,
+    allowNull: true // Allow null for social login
+  },
+  googleId: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    unique: true
+  },
+  emailVerified: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
   role: {
     type: DataTypes.ENUM('user', 'admin'),
     defaultValue: 'user'
-  },
-  // keys: {
-  //   type: DataTypes.ARRAY(DataTypes.STRING),
-  //   defaultValue: []
-  // }
-  clientId: {
-    type: DataTypes.STRING,
-    unique: true,
-    allowNull: false,
-    defaultValue: () => `client_${uuidv4()}`
-  },
+  }
 }, {
   timestamps: true
 });
+
+// Instance method to generate JWT token
+User.prototype.generateAuthToken = function() {
+  return jwt.sign(
+    { 
+      id: this.id,
+      email: this.email,
+      role: this.role
+    },
+    process.env.JWT_SECRET || 'your-secret-key',
+    { expiresIn: '24h' }
+  );
+};
+
+// Static method to validate token
+User.validateToken = function(token) {
+  try {
+    return jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+  } catch (error) {
+    return null;
+  }
+};
 
 module.exports = User;
