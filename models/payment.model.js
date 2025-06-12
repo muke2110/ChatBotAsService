@@ -28,7 +28,7 @@ const Payment = sequelize.define('Payment', {
     defaultValue: 'created'
   },
   amount: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.DECIMAL(10, 2),
     allowNull: false
   },
   currency: {

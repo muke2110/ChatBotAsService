@@ -53,13 +53,15 @@ exports.register = async (req, res, next) => {
 
     // Generate token
     const token = generateToken(user);
-
+    console.log('clientId', clientId);
+    console.log('client', client.clientId);
+    
     // Send response
     res.status(201).json({
       status: 'success',
       message: 'Registration successful',
       token,
-      clientId,
+      clientId: client.clientId,
       user: {
         id: user.id,
         fullName: user.fullName,
@@ -86,7 +88,7 @@ exports.login = async (req, res, next) => {
       where: { email },
       include: [{
         model: Client,
-        as: 'Client',
+        as: 'client',
         attributes: ['clientId']
       }]
     });
@@ -106,7 +108,7 @@ exports.login = async (req, res, next) => {
     const token = generateToken(user);
 
     // Get clientId
-    const clientId = user.Client ? user.Client.clientId : null;
+    const clientId = user.client ? user.client.clientId : null;
 
     // If no clientId exists, create one
     if (!clientId) {
@@ -155,7 +157,7 @@ exports.getProfile = async (req, res, next) => {
       attributes: { exclude: ['password'] },
       include: [{
         model: Client,
-        as: 'Client',
+        as: 'client',
         attributes: ['clientId']
       }]
     });
@@ -163,6 +165,8 @@ exports.getProfile = async (req, res, next) => {
     if (!user) {
       throw new ApiError(404, 'User not found');
     }
+    const clientId = user.client ? user.client.clientId : null;
+    console.log('clientId', clientId);
 
     res.status(200).json({
       status: 'success',
@@ -171,7 +175,7 @@ exports.getProfile = async (req, res, next) => {
         fullName: user.fullName,
         email: user.email,
         role: user.role,
-        clientId: user.Client ? user.Client.clientId : null
+        clientId: clientId
       }
     });
   } catch (err) {

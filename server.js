@@ -135,6 +135,11 @@ app.use('/api/v1/embed', require('./routes/embedRoutes'));
 app.use('/api/v1/query', require('./routes/queryRoutes'));
 app.use('/api/v1/plans', require('./routes/planRoutes'));
 app.use('/api/v1/subscriptions', require('./routes/subscriptionRoutes'));
+app.use('/api/v1/client', require('./routes/clientRoutes'));
+app.use('/api/v1/settings', require('./routes/settings'));
+app.use('/api/v1/documents', require('./routes/documents'));
+app.use('/api/v1/analytics', require('./routes/analyticsRoutes'));
+app.use('/api/v1/script', require('./routes/scriptRoutes'));
 
 // Serve React app in production
 if (process.env.NODE_ENV === 'production') {

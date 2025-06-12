@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import toast from 'react-hot-toast';
 
 const Settings = () => {
-  const { token, clientId } = useAuth();
+  const { token, clientId, setClientId } = useAuth();
   const [loading, setLoading] = useState(false);
   const [settings, setSettings] = useState({
     theme: {
@@ -16,6 +16,28 @@ const Settings = () => {
     welcomeMessage: 'Hello! How can I help you today?',
     botName: 'AI Assistant'
   });
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const response = await fetch('/api/v1/settings', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'x-client-id': clientId
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setSettings(data);
+        }
+      } catch (error) {
+        console.error('Error fetching settings:', error);
+      }
+    };
+
+    fetchSettings();
+  }, [token, clientId]);
 
   const handleSettingsChange = (key, value) => {
     if (key.includes('.')) {
@@ -38,11 +60,12 @@ const Settings = () => {
   const saveSettings = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/settings', {
+      const response = await fetch('/api/v1/settings', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'x-client-id': clientId
         },
         body: JSON.stringify(settings)
       });
@@ -60,15 +83,19 @@ const Settings = () => {
   const regenerateClientId = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/client/regenerate', {
+      const response = await fetch('/api/v1/client/regenerate', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'x-client-id': clientId
         }
       });
 
       if (!response.ok) throw new Error('Failed to regenerate client ID');
 
+      const data = await response.json();
+      setClientId(data.clientId);
+      localStorage.setItem('clientId', data.clientId);
       toast.success('Client ID regenerated successfully! Please update your website script.');
     } catch (error) {
       toast.error('Failed to regenerate client ID. Please try again.');
@@ -109,55 +136,46 @@ const Settings = () => {
               </div>
             </div>
 
-            {/* Appearance Settings */}
+            {/* Theme Settings */}
             <div className="bg-white dark:bg-gray-800 shadow sm:rounded-lg">
               <div className="px-4 py-5 sm:p-6">
-                <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-white">
-                  Appearance
+                <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-white mb-4">
+                  Theme Settings
                 </h3>
-                <div className="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                       Primary Color
                     </label>
-                    <div className="mt-1">
-                      <input
-                        type="color"
-                        value={settings.theme.primaryColor}
-                        onChange={(e) => handleSettingsChange('theme.primaryColor', e.target.value)}
-                        className="w-full h-10 rounded-md"
-                      />
-                    </div>
+                    <input
+                      type="color"
+                      value={settings.theme.primaryColor}
+                      onChange={(e) => handleSettingsChange('theme.primaryColor', e.target.value)}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                    />
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                       Text Color
                     </label>
-                    <div className="mt-1">
-                      <input
-                        type="color"
-                        value={settings.theme.textColor}
-                        onChange={(e) => handleSettingsChange('theme.textColor', e.target.value)}
-                        className="w-full h-10 rounded-md"
-                      />
-                    </div>
+                    <input
+                      type="color"
+                      value={settings.theme.textColor}
+                      onChange={(e) => handleSettingsChange('theme.textColor', e.target.value)}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                    />
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                       Background Color
                     </label>
-                    <div className="mt-1">
-                      <input
-                        type="color"
-                        value={settings.theme.backgroundColor}
-                        onChange={(e) => handleSettingsChange('theme.backgroundColor', e.target.value)}
-                        className="w-full h-10 rounded-md"
-                      />
-                    </div>
+                    <input
+                      type="color"
+                      value={settings.theme.backgroundColor}
+                      onChange={(e) => handleSettingsChange('theme.backgroundColor', e.target.value)}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                    />
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                       Position
@@ -165,7 +183,7 @@ const Settings = () => {
                     <select
                       value={settings.position}
                       onChange={(e) => handleSettingsChange('position', e.target.value)}
-                      className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-800 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600"
                     >
                       <option value="bottom-right">Bottom Right</option>
                       <option value="bottom-left">Bottom Left</option>
@@ -180,36 +198,31 @@ const Settings = () => {
             {/* Chat Settings */}
             <div className="bg-white dark:bg-gray-800 shadow sm:rounded-lg">
               <div className="px-4 py-5 sm:p-6">
-                <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-white">
+                <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-white mb-4">
                   Chat Settings
                 </h3>
-                <div className="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
-                  <div className="sm:col-span-2">
+                <div className="space-y-4">
+                  <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                       Welcome Message
                     </label>
-                    <div className="mt-1">
-                      <input
-                        type="text"
-                        value={settings.welcomeMessage}
-                        onChange={(e) => handleSettingsChange('welcomeMessage', e.target.value)}
-                        className="input-field"
-                      />
-                    </div>
+                    <input
+                      type="text"
+                      value={settings.welcomeMessage}
+                      onChange={(e) => handleSettingsChange('welcomeMessage', e.target.value)}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600"
+                    />
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                       Bot Name
                     </label>
-                    <div className="mt-1">
-                      <input
-                        type="text"
-                        value={settings.botName}
-                        onChange={(e) => handleSettingsChange('botName', e.target.value)}
-                        className="input-field"
-                      />
-                    </div>
+                    <input
+                      type="text"
+                      value={settings.botName}
+                      onChange={(e) => handleSettingsChange('botName', e.target.value)}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600"
+                    />
                   </div>
                 </div>
               </div>

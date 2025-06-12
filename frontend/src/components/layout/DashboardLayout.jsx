@@ -8,6 +8,7 @@ import {
   CreditCardIcon,
   Cog6ToothIcon,
   ArrowLeftOnRectangleIcon,
+  BookOpenIcon,
   Bars3Icon,
   XMarkIcon,
   ChatBubbleLeftRightIcon
@@ -19,6 +20,7 @@ const navigation = [
   { name: 'Script', href: '/script', icon: CodeBracketIcon },
   { name: 'Plans', href: '/plans', icon: CreditCardIcon },
   { name: 'Settings', href: '/settings', icon: Cog6ToothIcon },
+  { name: 'Documentation', href: '/documentation', icon: BookOpenIcon },
 ];
 
 const DashboardLayout = ({ children }) => {
@@ -156,9 +158,9 @@ const DashboardLayout = ({ children }) => {
             </div>
             <div className="ml-4 flex items-center md:ml-6">
               <div className="flex items-center">
-                <span className="text-gray-700 dark:text-gray-300 mr-2">{user?.name}</span>
+                <span className="text-gray-700 dark:text-gray-300 mr-2">{user?.fullName}</span>
                 <div className="h-8 w-8 rounded-full bg-primary-600 flex items-center justify-center text-white">
-                  {user?.name?.charAt(0).toUpperCase()}
+                  {user?.fullName?.charAt(0).toUpperCase()}
                 </div>
               </div>
             </div>

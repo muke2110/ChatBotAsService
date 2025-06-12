@@ -40,29 +40,32 @@ const createOrder = async (req, res) => {
         // Calculate amount based on billing cycle
         let amount = plan.price;
         if (billingCycle === 'yearly') {
-            amount = plan.price * 12 * 0.8; // 20% discount for yearly
+            amount = Math.floor(plan.price * 12 * 0.8); // 20% discount for yearly, rounded down
         }
+
+        // Convert to paise and ensure it's an integer
+        const amountInPaise = Math.floor(amount * 100);
 
         // Create Razorpay order
         const order = await razorpay.orders.create({
-            amount: amount * 100, // Convert to paise
+            amount: amountInPaise,
             currency: 'INR',
             receipt: `order_${Date.now()}`
         });
 
-        // Save order details
+        // Save order details with the original amount (not in paise)
         const payment = await Payment.create({
             userId: req.user.id,
             planId: plan.id,
             orderId: order.id,
-            amount: amount,
+            amount: Math.floor(amount), // Store as integer
             status: 'created',
             billingCycle
         });
 
         res.json({
             orderId: order.id,
-            amount: amount,
+            amount: amountInPaise,
             currency: 'INR',
             planDetails: plan,
             paymentId: payment.id,

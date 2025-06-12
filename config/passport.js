@@ -19,7 +19,7 @@ passport.use(new GoogleStrategy({
         },
         include: [{
           model: Client,
-          as: 'Client',
+          as: 'client',
           attributes: ['clientId']
         }]
       });
@@ -32,7 +32,7 @@ passport.use(new GoogleStrategy({
           },
           include: [{
             model: Client,
-            as: 'Client',
+            as: 'client',
             attributes: ['clientId']
           }]
         });
@@ -54,7 +54,7 @@ passport.use(new GoogleStrategy({
         }
 
         // Create client if it doesn't exist
-        if (!user.Client) {
+        if (!user.client) {
           const clientId = uuidv4();
           await Client.create({
             userId: user.id,
@@ -67,7 +67,7 @@ passport.use(new GoogleStrategy({
             where: { id: user.id },
             include: [{
               model: Client,
-              as: 'Client',
+              as: 'client',
               attributes: ['clientId']
             }]
           });
@@ -97,7 +97,7 @@ passport.deserializeUser(async (id, done) => {
       where: { id: id },
       include: [{
         model: Client,
-        as: 'Client',
+        as: 'client',
         attributes: ['clientId']
       }]
     });

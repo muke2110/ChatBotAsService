@@ -14,6 +14,7 @@ import Script from './pages/Script';
 import Plans from './pages/Plans';
 import Buy from './pages/Buy';
 import Settings from './pages/Settings';
+import Documentation from './pages/Documentation';
 
 function App() {
   return (
@@ -77,6 +78,15 @@ function App() {
             element={
               <PrivateRoute requirePlan={true}>
                 <Settings />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/documentation"
+            element={
+              <PrivateRoute>
+                <Documentation />
               </PrivateRoute>
             }
           />

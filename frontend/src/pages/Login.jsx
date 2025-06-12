@@ -37,7 +37,8 @@ const Login = () => {
     try {
       // Store the token and clientId with the correct keys
       localStorage.setItem('token', token);
-      if (clientId) {
+      if (clientId ) {
+        console.log('clientId', clientId);
         localStorage.setItem('clientId', clientId);
       }
       
@@ -69,7 +70,7 @@ const Login = () => {
     
     if (result.success) {
       toast.success('Login successful!');
-      navigate(from, { replace: true });
+      // window.location.href = from; // Force a full page reload to ensure proper state
     } else {
       toast.error(result.error);
     }

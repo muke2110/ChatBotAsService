@@ -12,11 +12,13 @@ class ChatbotService {
       backgroundColor: '#ffffff',
       textColor: '#000000'
     };
+    this.botName = config.botName || 'Chat Assistant';
+    this.welcomeMessage = config.welcomeMessage || 'Hello! How can I help you today?';
 
     this.initialize();
   }
 
-  initialize() {
+  async initialize() {
     // Create chatbot container
     this.container = document.createElement('div');
     this.container.id = 'chatbot-container';
@@ -77,7 +79,7 @@ class ChatbotService {
       color: white;
       font-weight: bold;
     `;
-    header.textContent = 'Chat Assistant';
+    header.textContent = this.botName;
 
     // Create messages container
     this.messagesContainer = document.createElement('div');
@@ -136,11 +138,15 @@ class ChatbotService {
     this.input.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') this.sendMessage();
     });
+
+    // Add welcome message
+    this.addMessage('bot', this.welcomeMessage);
   }
 
   toggleChat() {
-    this.chatWindow.style.display = this.chatWindow.style.display === 'none' ? 'flex' : 'none';
-    if (this.chatWindow.style.display === 'flex') {
+    const isOpening = this.chatWindow.style.display === 'none';
+    this.chatWindow.style.display = isOpening ? 'flex' : 'none';
+    if (isOpening) {
       this.input.focus();
     }
   }

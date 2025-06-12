@@ -27,6 +27,20 @@ const Client = sequelize.define('Client', {
     unique: true,
     allowNull: false,
     defaultValue: () => `bkt_${uuidv4()}`
+  },
+  settings: {
+    type: DataTypes.JSONB,
+    allowNull: true,
+    defaultValue: {
+      theme: {
+        primaryColor: '#0ea5e9',
+        textColor: '#ffffff',
+        backgroundColor: '#1f2937'
+      },
+      position: 'bottom-right',
+      welcomeMessage: 'Hello! How can I help you today?',
+      botName: 'AI Assistant'
+    }
   }
 }, {
   timestamps: true

@@ -11,7 +11,7 @@ const Register = () => {
   });
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { register, googleLogin } = useAuth();
+  const { register } = useAuth();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -38,21 +38,9 @@ const Register = () => {
     }
   };
 
-  const handleGoogleSignup = async () => {
-    try {
-      // Initialize Google OAuth
-      const auth2 = window.gapi.auth2.getAuthInstance();
-      const googleUser = await auth2.signIn();
-      const token = googleUser.getAuthResponse().id_token;
-      
-      const success = await googleLogin(token);
-      if (success) {
-        toast.success('Registration successful!');
-        navigate('/dashboard', { replace: true });
-      }
-    } catch (error) {
-      toast.error('Google signup failed');
-    }
+  const handleGoogleSignup = () => {
+    // Redirect to backend Google auth route
+    window.location.href = 'http://localhost:3000/api/v1/auth/google';
   };
 
   return (
