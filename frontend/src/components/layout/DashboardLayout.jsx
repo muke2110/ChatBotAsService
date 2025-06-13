@@ -18,6 +18,7 @@ const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
   { name: 'Upload Docs', href: '/upload', icon: DocumentTextIcon },
   { name: 'Script', href: '/script', icon: CodeBracketIcon },
+  { name: 'Queries', href: '/test-query', icon: ChatBubbleLeftRightIcon },
   { name: 'Plans', href: '/plans', icon: CreditCardIcon },
   { name: 'Settings', href: '/settings', icon: Cog6ToothIcon },
   { name: 'Documentation', href: '/documentation', icon: BookOpenIcon },

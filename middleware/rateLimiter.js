@@ -14,7 +14,7 @@ setInterval(() => {
 
 // Base rate limiter for unauthenticated routes
 const baseRateLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000, // 15 minutes
+  windowMs:  60 * 1000, // 5 minutes
   max: 200, // Limit each IP to 100 requests per windowMs
   message: 'Too many requests from this IP, please try again later',
   standardHeaders: true,
@@ -23,7 +23,7 @@ const baseRateLimiter = rateLimit({
 
 // Rate limiter for authentication routes
 const authRateLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
+  windowMs: 60 * 100, // 10 minutes
   max: 5, // Limit each IP to 5 login attempts per hour
   message: 'Too many login attempts, please try again later',
   standardHeaders: true,
