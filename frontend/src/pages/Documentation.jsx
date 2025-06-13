@@ -126,6 +126,31 @@ const Documentation = () => {
               ))}
             </div>
           ))}
+
+          <div className="bg-gray-50 p-6 rounded-lg">
+            <h3 className="text-lg font-semibold mb-4">Integration</h3>
+            <p className="text-gray-600 mb-4">
+              Add this script to your website to integrate the chatbot:
+            </p>
+            <pre className="bg-gray-800 text-white p-4 rounded-lg overflow-x-auto">
+              <code>{`<script>
+  window.chatbotConfig = {
+    clientId: 'YOUR_CLIENT_ID',
+    theme: {
+      primaryColor: '#4F46E5',
+      backgroundColor: '#ffffff',
+      textColor: '#1F2937'
+    },
+    position: 'bottom-right',
+    apiUrl: 'http://localhost:5000/api/v1'
+  };
+</script>
+<script src="http://localhost:5000/chatbot.js"></script>`}</code>
+            </pre>
+            <p className="text-gray-600 mt-4">
+              Replace <code className="bg-gray-100 px-1 py-0.5 rounded">YOUR_CLIENT_ID</code> with your actual client ID from the settings page.
+            </p>
+          </div>
         </div>
       </div>
     </DashboardLayout>

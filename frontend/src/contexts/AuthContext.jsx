@@ -43,7 +43,14 @@ export const AuthProvider = ({ children }) => {
   const fetchUserData = useCallback(async () => {
     try {
       const response = await authAPI.getProfile();
-      setUser(response.data.user);
+      const userData = response.data.user;
+      setUser(userData);
+      
+      // Update clientId if it exists in the response
+      if (userData.clientId) {
+        localStorage.setItem('clientId', userData.clientId);
+        setClientId(userData.clientId);
+      }
       
       // Check current plan status
       try {
@@ -112,16 +119,22 @@ export const AuthProvider = ({ children }) => {
       const response = await authAPI.googleLogin(googleToken);
       const { token, clientId } = response.data;
       
+      // Set token and clientId in localStorage and state
       localStorage.setItem('token', token);
       localStorage.setItem('clientId', clientId);
       
       setToken(token);
       setClientId(clientId);
       
+      // Fetch user data and wait for it to complete
       await fetchUserData();
+      
+      // Return success only after everything is complete
       return { success: true };
     } catch (error) {
       console.error('Google login error:', error);
+      // Clear any partial auth state
+      clearAuth();
       return { 
         success: false, 
         error: error.response?.data?.message || 'Google login failed' 

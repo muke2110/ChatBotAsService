@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import DashboardLayout from '../components/layout/DashboardLayout';
-import { DocumentTextIcon, ChatBubbleLeftIcon, ClockIcon, CodeBracketIcon } from '@heroicons/react/24/outline';
+import { DocumentTextIcon, ChatBubbleLeftIcon, ClockIcon, CodeBracketIcon, UserCircleIcon } from '@heroicons/react/24/outline';
+import { Link } from 'react-router-dom';
 
 const Dashboard = () => {
   const { user, clientId } = useAuth();
@@ -11,20 +12,23 @@ const Dashboard = () => {
     averageResponseTime: '< 1s',
     totalQueries: 0
   });
+  const [planInfo, setPlanInfo] = useState(null);
 
   useEffect(() => {
-    const fetchAnalytics = async () => {
+    const fetchData = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch('/api/v1/analytics', {
+        
+        // Fetch analytics
+        const analyticsResponse = await fetch('/api/v1/analytics', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'x-client-id': clientId
           }
         });
         
-        if (response.ok) {
-          const data = await response.json();
+        if (analyticsResponse.ok) {
+          const data = await analyticsResponse.json();
           setStats({
             documentsUploaded: data.documentsUploaded || 0,
             totalChats: data.totalChats || 0,
@@ -32,13 +36,28 @@ const Dashboard = () => {
             totalQueries: data.totalQueries || 0
           });
         }
+
+        // Fetch plan info
+        const planResponse = await fetch('/api/v1/plans/current', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'x-client-id': clientId
+          }
+        });
+
+        if (planResponse.ok) {
+          const planData = await planResponse.json();
+          setPlanInfo(planData);
+        }
       } catch (error) {
-        console.error('Error fetching analytics:', error);
+        console.error('Error fetching data:', error);
       }
     };
 
-    fetchAnalytics();
+    fetchData();
   }, [clientId]);
+  
+  console.log("stats:::::: ", stats);
 
   const analyticsCards = [
     { name: 'Documents Uploaded', value: stats.documentsUploaded, icon: DocumentTextIcon },
@@ -47,21 +66,81 @@ const Dashboard = () => {
     { name: 'Total Queries', value: stats.totalQueries, icon: ChatBubbleLeftIcon },
   ];
 
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'N/A';
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  const getPlanName = () => {
+    if (!planInfo) return 'No Plan';
+    return planInfo.name || planInfo.plan?.name || 'No Plan';
+  };
+
+  const getPlanDates = () => {
+    if (!planInfo) return { startDate: 'N/A', endDate: 'N/A' };
+    return {
+      startDate: formatDate(planInfo.startDate || planInfo.plan?.startDate),
+      endDate: formatDate(planInfo.endDate || planInfo.plan?.endDate)
+    };
+  };
+
   return (
     <DashboardLayout>
       <div className="py-6">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 md:px-8">
+          {/* Welcome and Profile Section */}
           <div className="bg-white dark:bg-gray-800 shadow sm:rounded-lg mb-8">
             <div className="px-4 py-5 sm:p-6">
-              <h2 className="text-lg font-medium text-gray-900 dark:text-white">
-                Welcome back, {user?.fullName}!
-              </h2>
-              <div className="mt-2 max-w-xl text-sm text-gray-500 dark:text-gray-400">
-                <p>Your Client ID: <span className="font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">{clientId}</span></p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-medium text-gray-900 dark:text-white">
+                    Welcome back, {user?.fullName}!
+                  </h2>
+                  <div className="mt-2 max-w-xl text-sm text-gray-500 dark:text-gray-400">
+                    <p>Your Client ID: <span className="font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">{clientId}</span></p>
+                  </div>
+                </div>
+                <Link
+                  to="/profile"
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-primary-700 bg-primary-100 hover:bg-primary-200 dark:bg-primary-900 dark:text-primary-300 dark:hover:bg-primary-800"
+                >
+                  <UserCircleIcon className="h-5 w-5 mr-2" />
+                  View Profile
+                </Link>
               </div>
             </div>
           </div>
 
+          {/* Plan Information */}
+          <div className="bg-white dark:bg-gray-800 shadow sm:rounded-lg mb-8">
+            <div className="px-4 py-5 sm:p-6">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                Current Plan
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Plan Type</p>
+                  <p className="text-lg font-medium text-gray-900 dark:text-white">{getPlanName()}</p>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Start Date</p>
+                  <p className="text-lg font-medium text-gray-900 dark:text-white">{getPlanDates().startDate}</p>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Expiry Date</p>
+                  <p className="text-lg font-medium text-gray-900 dark:text-white">{getPlanDates().endDate}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Analytics Cards */}
           <div className="mt-8">
             <dl className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
               {analyticsCards.map((item) => (
@@ -87,6 +166,7 @@ const Dashboard = () => {
             </dl>
           </div>
 
+          {/* Quick Actions */}
           <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
               <div className="p-5">
@@ -110,12 +190,44 @@ const Dashboard = () => {
               </div>
               <div className="bg-gray-50 dark:bg-gray-700 px-5 py-3">
                 <div className="text-sm">
-                  <a
-                    href="/upload"
+                  <Link
+                    to="/upload"
                     className="font-medium text-primary-600 hover:text-primary-500"
                   >
                     Get started
-                  </a>
+                  </Link>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <ChatBubbleLeftIcon className="h-6 w-6 text-gray-400" aria-hidden="true" />
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
+                        Test Query Bot
+                      </dt>
+                      <dd>
+                        <div className="text-lg font-medium text-gray-900 dark:text-white">
+                          Test your chatbot with queries
+                        </div>
+                      </dd>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gray-50 dark:bg-gray-700 px-5 py-3">
+                <div className="text-sm">
+                  <Link
+                    to="/test-query"
+                    className="font-medium text-primary-600 hover:text-primary-500"
+                  >
+                    Test now
+                  </Link>
                 </div>
               </div>
             </div>
@@ -142,12 +254,12 @@ const Dashboard = () => {
               </div>
               <div className="bg-gray-50 dark:bg-gray-700 px-5 py-3">
                 <div className="text-sm">
-                  <a
-                    href="/script"
+                  <Link
+                    to="/script"
                     className="font-medium text-primary-600 hover:text-primary-500"
                   >
                     View integration guide
-                  </a>
+                  </Link>
                 </div>
               </div>
             </div>

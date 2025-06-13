@@ -4,6 +4,7 @@ const { v4: uuidv4 } = require('uuid');
 const User = require('../models/user.model');
 const Client = require('../models/client.model');
 const { ApiError } = require('../utils/apiError');
+const { Op } = require('sequelize');
 
 const generateToken = (user) => {
   return jwt.sign(
@@ -176,6 +177,59 @@ exports.getProfile = async (req, res, next) => {
         email: user.email,
         role: user.role,
         clientId: clientId
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.updateProfile = async (req, res, next) => {
+  try {
+    const { fullName, email } = req.body;
+
+    // Validate required fields
+    if (!fullName || !email) {
+      throw new ApiError(400, 'Please provide all required fields');
+    }
+
+    // Check if email is already taken by another user
+    const existingUser = await User.findOne({ 
+      where: { 
+        email,
+        id: { [Op.ne]: req.user.id } // Exclude current user
+      }
+    });
+
+    if (existingUser) {
+      throw new ApiError(400, 'Email already taken');
+    }
+
+    // Update user
+    const user = await User.findByPk(req.user.id);
+    if (!user) {
+      throw new ApiError(404, 'User not found');
+    }
+
+    await user.update({
+      fullName,
+      email
+    });
+
+    // Update client name if it exists
+    const client = await Client.findOne({ where: { userId: user.id } });
+    if (client) {
+      await client.update({ name: fullName });
+    }
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Profile updated successfully',
+      user: {
+        id: user.id,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role
       }
     });
   } catch (err) {

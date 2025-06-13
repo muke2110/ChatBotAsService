@@ -31,14 +31,13 @@ const Login = () => {
     if (token) {
       handleGoogleLoginSuccess(token, clientId);
     }
-  });
+  }); // Add empty dependency array
 
   const handleGoogleLoginSuccess = async (token, clientId) => {
     try {
       // Store the token and clientId with the correct keys
       localStorage.setItem('token', token);
-      if (clientId ) {
-        console.log('clientId', clientId);
+      if (clientId) {
         localStorage.setItem('clientId', clientId);
       }
       
@@ -66,16 +65,20 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
 
-    const result = await login(email, password);
-    
-    if (result.success) {
-      toast.success('Login successful!');
-      // window.location.href = from; // Force a full page reload to ensure proper state
-    } else {
-      toast.error(result.error);
+    try {
+      const result = await login(email, password);
+      
+      if (result.success) {
+        toast.success('Login successful!');
+        navigate(from, { replace: true });
+      } else {
+        toast.error(result.error);
+      }
+    } catch (error) {
+      toast.error('An unexpected error occurred');
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   return (

@@ -1,7 +1,4 @@
-const Client = require('../models/client.model');
-const UserPlan = require('../models/userPlan.model');
-const Plan = require('../models/plan.model');
-const Query = require('../models/query.model');
+const { Client, UserPlan, Query, Plan, Document } = require('../models');
 const { Op } = require('sequelize');
 const logger = require('../utils/logger');
 
@@ -15,18 +12,13 @@ exports.getDashboardAnalytics = async (req, res) => {
       include: [{
         model: UserPlan,
         as: 'userPlan',
-        include: [{
-          model: Plan
-        }]
+        include: [Plan]
       }]
     });
     
 
     if (!client) {
-      return res.status(404).json({
-        status: 'error',
-        message: 'Client not found'
-      });
+      return res.status(404).json({ message: 'Client not found' });
     }
 
     // Get current date for time-based queries
@@ -35,6 +27,11 @@ exports.getDashboardAnalytics = async (req, res) => {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - now.getDay());
+
+    // Get document count
+    const documentCount = await Document.count({
+      where: { clientId: client.id }
+    });
 
     // Get query statistics
     const queryStats = await Query.findAndCountAll({
@@ -65,30 +62,21 @@ exports.getDashboardAnalytics = async (req, res) => {
 
     // Prepare response
     const analytics = {
-      documentCount: userPlan ? userPlan.currentDocumentCount : 0,
-      storageUsed: userPlan ? userPlan.currentStorageUsageGB : 0,
-      queries: {
-        today: todayQueries,
-        thisWeek: weekQueries,
-        thisMonth: monthQueries
-      },
-      performance: {
-        averageResponseTime: Math.round(avgResponseTime), // in milliseconds
-        totalQueries: queryStats.count
-      },
+      documentsUploaded: documentCount,
+      totalChats: monthQueries,
+      averageResponseTime: avgResponseTime < 1000 ? '< 1s' : `${Math.round(avgResponseTime / 1000)}s`,
+      totalQueries: queryStats.count,
       plan: {
-        name: userPlan?.Plan?.name || 'No Plan',
+        name: userPlan?.plan?.name || 'No Plan',
         status: userPlan?.status || 'inactive',
-        expiresAt: userPlan?.endDate
+        startDate: userPlan?.startDate || null,
+        endDate: userPlan?.endDate || null
       }
     };
 
     res.json(analytics);
   } catch (error) {
     logger.error('Error fetching analytics:', error);
-    res.status(500).json({
-      status: 'error',
-      message: 'Error fetching analytics'
-    });
+    res.status(500).json({ message: 'Failed to fetch analytics' });
   }
 }; 

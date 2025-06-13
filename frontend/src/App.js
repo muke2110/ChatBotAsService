@@ -15,6 +15,8 @@ import Plans from './pages/Plans';
 import Buy from './pages/Buy';
 import Settings from './pages/Settings';
 import Documentation from './pages/Documentation';
+import Profile from './pages/Profile';
+import TestQuery from './pages/TestQuery';
 
 function App() {
   return (
@@ -56,6 +58,15 @@ function App() {
           />
           
           <Route
+            path="/test-query"
+            element={
+              <PrivateRoute requirePlan={true}>
+                <TestQuery />
+              </PrivateRoute>
+            }
+          />
+          
+          <Route
             path="/plans"
             element={
               <PrivateRoute>
@@ -87,6 +98,15 @@ function App() {
             element={
               <PrivateRoute>
                 <Documentation />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/profile"
+            element={
+              <PrivateRoute>
+                <Profile />
               </PrivateRoute>
             }
           />

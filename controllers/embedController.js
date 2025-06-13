@@ -6,11 +6,19 @@ const ragService = require('../services/ragService');
 const faissService = require('../services/faissService');
 const { ApiError } = require('../utils/apiError');
 const logger = require('../utils/logger');
+const { Client, Document } = require('../models');
 
 exports.uploadAndEmbedFiles = async (req, res, next) => {
   try {
     const files = req.files;
     const modelPath = req.s3ModelPath;
+    const client = await Client.findOne({
+      where: { s3ModelPath: modelPath }
+    });
+
+    if (!client) {
+      throw new ApiError(404, 'Client not found');
+    }
 
     if (!files || files.length === 0) {
       throw new ApiError(400, 'No files uploaded');
@@ -25,59 +33,78 @@ exports.uploadAndEmbedFiles = async (req, res, next) => {
       fileCount: files.length
     });
 
-    let allChunks = [];
+    const processedDocuments = [];
+    console.log("client.s3ModelPath:: ", client.s3ModelPath);
 
     for (const file of files) {
-      const text = await fileService.extractText(file);
-      const chunks = chunkService.chunkText(text);
-      allChunks = allChunks.concat(chunks);
-
-      logger.info(`Processed file ${file.originalname}`, {
-        modelPath,
-        chunkCount: chunks.length
+      // Create document record
+      const document = await Document.create({
+        clientId: client.id,
+        name: file.originalname,
+        size: file.size,
+        status: 'processing',
+        s3Key: `${client.s3ModelPath}`,
+        chunkCount: 0,
+        chunkPaths: []
       });
-    }
+      console.log("document s3key:: ", document.s3Key);
 
-    const embeddings = await embedService.generateEmbeddings(allChunks);
-    console.log("Embeddings:: ", embeddings.length);
-    // Validate embeddings
-    if (!embeddings || embeddings.length === 0) {
-      throw new ApiError(500, 'Failed to generate embeddings');
-    }
 
-    // Validate embedding dimensions
-    const embeddingDimension = embeddings[0]?.length;
-    const inconsistentEmbedding = embeddings.find(e => e.length !== embeddingDimension);
-    if (inconsistentEmbedding) {
-      logger.error('Inconsistent embedding dimensions detected', {
-        modelPath,
-        expected: embeddingDimension,
-        found: inconsistentEmbedding.length
-      });
-      throw new ApiError(500, 'Invalid embedding dimensions');
-    }
-    console.log("Before uploading to S3 and FAISS:: ");
+      try {
+        // Extract text and create chunks
+        const text = await fileService.extractText(file);
+        const chunks = chunkService.chunkText(text);
+        
+        // Generate embeddings for chunks
+        const embeddings = await embedService.generateEmbeddings(chunks);
+        
+        if (!embeddings || embeddings.length === 0) {
+          throw new ApiError(500, 'Failed to generate embeddings');
+        }
 
-    // Upload to S3 and add to FAISS index
-    await Promise.all([
-      s3Service.uploadEmbeddings(allChunks, embeddings, modelPath),
-      faissService.addToIndex(allChunks, embeddings, modelPath)
-    ]);
-    console.log("After uploading to S3 and FAISS:: ");
+        // Upload chunks and embeddings to S3
+        const s3Paths = await s3Service.uploadEmbeddings(chunks, embeddings, modelPath);
+        
+        // Add to FAISS index
+        await faissService.addToIndex(chunks, embeddings, modelPath);
+
+        // Update document with chunk information
+        document.chunkCount = chunks.length;
+        document.chunkPaths = s3Paths;
+        document.status = 'completed';
+        await document.save();
+
+        processedDocuments.push(document);
+
+        logger.info(`Processed file ${file.originalname}`, {
+          modelPath,
+          chunkCount: chunks.length,
+          documentId: document.id
+        });
+      } catch (error) {
+        // Update document status to failed
+        document.status = 'failed';
+        await document.save();
+        throw error;
+      }
+    }
 
     logger.info('Files processed and embeddings stored successfully', {
       modelPath,
-      totalChunks: allChunks.length
+      documentsProcessed: processedDocuments.length
     });
 
     res.status(200).json({
       success: true,
       message: 'Files processed and embeddings stored successfully',
-      stats: {
-        filesProcessed: files.length,
-        chunksGenerated: allChunks.length,
-        embeddingsStored: embeddings.length
-      }
+      documents: processedDocuments.map(doc => ({
+        id: doc.id,
+        name: doc.name,
+        size: doc.size,
+        status: doc.status,
+        chunkCount: doc.chunkCount,
+        createdAt: doc.createdAt
+      }))
     });
   } catch (error) {
     logger.error('Error in uploadAndEmbedFiles', {
@@ -199,8 +226,8 @@ exports.deleteEmbeddedFile = async (req, res, next) => {
     }
 
     await Promise.all([
-      s3Service.deleteEmbeddings(`${modelPath}/${fileId}`),
-      faissService.removeFromIndex(`${modelPath}/${fileId}`)
+      s3Service.deleteEmbeddings(`${modelPath}`),
+      // faissService.removeFromIndex(`${modelPath}`)
     ]);
 
     logger.info('Embeddings deleted successfully', {

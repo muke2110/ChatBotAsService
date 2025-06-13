@@ -16,6 +16,7 @@ router.post('/logout', authController.logout);
 
 // Protected routes
 router.get('/profile', authMiddleware, authController.getProfile);
+router.put('/profile', authMiddleware, authController.updateProfile);
 
 // Health check
 router.get('/', (req, res) => {

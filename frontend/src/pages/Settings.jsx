@@ -94,10 +94,15 @@ const Settings = () => {
       if (!response.ok) throw new Error('Failed to regenerate client ID');
 
       const data = await response.json();
-      setClientId(data.clientId);
-      localStorage.setItem('clientId', data.clientId);
-      toast.success('Client ID regenerated successfully! Please update your website script.');
+      if (data.clientId) {
+        setClientId(data.clientId);
+        localStorage.setItem('clientId', data.clientId);
+        toast.success('Client ID regenerated successfully! Please update your website script.');
+      } else {
+        throw new Error('No client ID received from server');
+      }
     } catch (error) {
+      console.error('Error regenerating client ID:', error);
       toast.error('Failed to regenerate client ID. Please try again.');
     } finally {
       setLoading(false);

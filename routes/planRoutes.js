@@ -63,7 +63,20 @@ router.get('/current', authenticate, async (req, res) => {
         ]
       }]
     });
-    res.json(userPlan?.Plan || null);
+
+    if (!userPlan) {
+      return res.json(null);
+    }
+
+    // Combine plan data with subscription dates
+    const response = {
+      ...userPlan.Plan.toJSON(),
+      startDate: userPlan.startDate,
+      endDate: userPlan.endDate,
+      status: userPlan.status
+    };
+
+    res.json(response);
   } catch (error) {
     console.error('Error fetching current plan:', error);
     res.status(500).json({ error: 'Failed to fetch current plan' });

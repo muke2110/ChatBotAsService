@@ -6,15 +6,14 @@ import { DocumentTextIcon, TrashIcon } from '@heroicons/react/24/outline';
 const Upload = () => {
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
-  const [documents, setDocuments] = useState([]);
+  const [currentDocument, setCurrentDocument] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [documentToDelete, setDocumentToDelete] = useState(null);
 
   useEffect(() => {
-    fetchDocuments();
+    fetchCurrentDocument();
   }, []);
 
-  const fetchDocuments = async () => {
+  const fetchCurrentDocument = async () => {
     try {
       const token = localStorage.getItem('token');
       const clientId = localStorage.getItem('clientId');
@@ -26,13 +25,13 @@ const Upload = () => {
         }
       });
 
-      if (!response.ok) throw new Error('Failed to fetch documents');
+      if (!response.ok) throw new Error('Failed to fetch document');
 
       const data = await response.json();
-      setDocuments(data.documents || []);
+      setCurrentDocument(data.document || null);
     } catch (error) {
-      console.error('Error fetching documents:', error);
-      toast.error('Failed to fetch documents');
+      console.error('Error fetching document:', error);
+      toast.error('Failed to fetch document');
     }
   };
 
@@ -87,8 +86,8 @@ const Upload = () => {
       setFile(null);
       // Reset the file input
       e.target.reset();
-      // Refresh documents list
-      fetchDocuments();
+      // Refresh current document
+      fetchCurrentDocument();
     } catch (error) {
       console.error('Upload error:', error);
       toast.error(error.message || 'Failed to upload file');
@@ -97,8 +96,7 @@ const Upload = () => {
     }
   };
 
-  const handleDelete = async (document) => {
-    setDocumentToDelete(document);
+  const handleDelete = () => {
     setShowDeleteConfirm(true);
   };
 
@@ -107,7 +105,7 @@ const Upload = () => {
       const token = localStorage.getItem('token');
       const clientId = localStorage.getItem('clientId');
 
-      const response = await fetch(`/api/v1/documents/${documentToDelete.id}`, {
+      const response = await fetch('http://localhost:3000/api/v1/documents/', {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -119,8 +117,7 @@ const Upload = () => {
 
       toast.success('Document deleted successfully');
       setShowDeleteConfirm(false);
-      setDocumentToDelete(null);
-      fetchDocuments();
+      setCurrentDocument(null);
     } catch (error) {
       console.error('Delete error:', error);
       toast.error('Failed to delete document');
@@ -134,10 +131,10 @@ const Upload = () => {
           <div className="bg-white dark:bg-gray-800 shadow sm:rounded-lg">
             <div className="px-4 py-5 sm:p-6">
               <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-white">
-                Upload Documents
+                Upload Document
               </h3>
               <div className="mt-2 max-w-xl text-sm text-gray-500 dark:text-gray-400">
-                <p>Upload PDF documents to train your chatbot. The documents will be processed and used to answer user queries.</p>
+                <p>Upload a PDF document to train your chatbot. The document will be processed and used to answer user queries.</p>
               </div>
               <form onSubmit={handleUpload} className="mt-5">
                 <div className="flex items-center">
@@ -175,30 +172,28 @@ const Upload = () => {
             </div>
           </div>
 
-          {/* Documents List */}
+          {/* Current Document */}
           <div className="mt-8 bg-white dark:bg-gray-800 shadow sm:rounded-lg">
             <div className="px-4 py-5 sm:p-6">
               <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-white mb-4">
-                Uploaded Documents
+                Current Document
               </h3>
               <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                {documents.length === 0 ? (
-                  <p className="text-gray-500 dark:text-gray-400 py-4">No documents uploaded yet.</p>
+                {!currentDocument ? (
+                  <p className="text-gray-500 dark:text-gray-400 py-4">No document uploaded yet.</p>
                 ) : (
-                  documents.map((doc) => (
-                    <div key={doc.id} className="py-4 flex justify-between items-center">
-                      <div className="flex items-center">
-                        <DocumentTextIcon className="h-6 w-6 text-gray-400" />
-                        <span className="ml-2 text-gray-900 dark:text-white">{doc.name}</span>
-                      </div>
-                      <button
-                        onClick={() => handleDelete(doc)}
-                        className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-                      >
-                        <TrashIcon className="h-5 w-5" />
-                      </button>
+                  <div className="py-4 flex justify-between items-center">
+                    <div className="flex items-center">
+                      <DocumentTextIcon className="h-6 w-6 text-gray-400" />
+                      <span className="ml-2 text-gray-900 dark:text-white">{currentDocument.name}</span>
                     </div>
-                  ))
+                    <button
+                      onClick={handleDelete}
+                      className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                    >
+                      <TrashIcon className="h-5 w-5" />
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -208,46 +203,27 @@ const Upload = () => {
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
-        <div className="fixed z-10 inset-0 overflow-y-auto">
-          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-              <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
-            </div>
-
-            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-
-            <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
-              <div>
-                <div className="mt-3 text-center sm:mt-5">
-                  <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">
-                    Delete Document
-                  </h3>
-                  <div className="mt-2">
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      Are you sure you want to delete this document? This action will also delete all associated files in the S3 bucket. This action cannot be undone.
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
-                <button
-                  type="button"
-                  onClick={confirmDelete}
-                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:col-start-2 sm:text-sm"
-                >
-                  Delete
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowDeleteConfirm(false);
-                    setDocumentToDelete(null);
-                  }}
-                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:mt-0 sm:col-start-1 sm:text-sm dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600"
-                >
-                  Cancel
-                </button>
-              </div>
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-sm w-full mx-4">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+              Delete Document
+            </h3>
+            <p className="text-gray-500 dark:text-gray-400 mb-6">
+              Are you sure you want to delete this document? This action cannot be undone.
+            </p>
+            <div className="flex justify-end space-x-4">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="btn-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="btn-danger"
+              >
+                Delete
+              </button>
             </div>
           </div>
         </div>

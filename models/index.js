@@ -5,6 +5,7 @@ const UserPlan = require('./userPlan.model');
 const Payment = require('./payment.model');
 const Client = require('./client.model');
 const Query = require('./query.model');
+const Document = require('./document.model');
 
 // Define associations
 const initializeAssociations = () => {
@@ -30,6 +31,10 @@ const initializeAssociations = () => {
         foreignKey: 'clientId',
         as: 'queries'
     });
+    Client.hasMany(Document, {
+        foreignKey: 'clientId',
+        as: 'documents'
+    });
 
     // Plan associations
     Plan.hasMany(UserPlan, { foreignKey: 'planId' });
@@ -53,6 +58,12 @@ const initializeAssociations = () => {
         foreignKey: 'clientId',
         as: 'client'
     });
+
+    // Document associations
+    Document.belongsTo(Client, {
+        foreignKey: 'clientId',
+        as: 'client'
+    });
 };
 
 // Initialize associations
@@ -66,5 +77,6 @@ module.exports = {
     Payment,
     Client,
     Query,
+    Document,
     initializeAssociations
 }; 
