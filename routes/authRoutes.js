@@ -14,6 +14,12 @@ router.post('/register', authRateLimiter, authController.register);
 router.post('/login', authRateLimiter, authController.login);
 router.post('/logout', authController.logout);
 
+// Email verification and password reset routes
+router.get('/verify-email', authController.verifyEmail);
+router.post('/forgot-password', authRateLimiter, authController.forgotPassword);
+router.post('/reset-password', authRateLimiter, authController.resetPassword);
+router.post('/resend-verification', authMiddleware, authRateLimiter, authController.resendVerification);
+
 // Protected routes
 router.get('/profile', authMiddleware, authController.getProfile);
 router.put('/profile', authMiddleware, authController.updateProfile);

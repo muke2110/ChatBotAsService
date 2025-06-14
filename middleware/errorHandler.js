@@ -2,6 +2,11 @@ const logger = require('../utils/logger');
 
 class ErrorHandler {
   static handle(err, req, res, next) {
+    // Check if headers have already been sent
+    if (res.headersSent) {
+      return next(err);
+    }
+
     logger.error('Error:', {
       message: err.message,
       stack: err.stack,

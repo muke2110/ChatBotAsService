@@ -14,6 +14,9 @@ const User = sequelize.define('User', {
     type: DataTypes.STRING,
     unique: true,
     allowNull: false,
+    validate: {
+      isEmail: true
+    }
   },
   password: {
     type: DataTypes.STRING,
@@ -31,6 +34,10 @@ const User = sequelize.define('User', {
   role: {
     type: DataTypes.ENUM('user', 'admin'),
     defaultValue: 'user'
+  },
+  lastPasswordReset: {
+    type: DataTypes.DATE,
+    allowNull: true
   }
 }, {
   timestamps: true

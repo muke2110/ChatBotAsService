@@ -3,8 +3,10 @@ const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const User = require('../models/user.model');
 const Client = require('../models/client.model');
+const Token = require('../models/token.model');
 const { ApiError } = require('../utils/apiError');
 const { Op } = require('sequelize');
+const { sendEmail } = require('../services/emailService');
 
 const generateToken = (user) => {
   return jwt.sign(
@@ -15,6 +17,21 @@ const generateToken = (user) => {
     process.env.JWT_SECRET || 'your-secret-key',
     { expiresIn: '24h' }
   );
+};
+
+const generateVerificationToken = async (userId, type) => {
+  const token = uuidv4();
+  const expiresAt = new Date();
+  expiresAt.setHours(expiresAt.getHours() + 24); // Token expires in 24 hours
+
+  await Token.create({
+    userId,
+    token,
+    type,
+    expiresAt
+  });
+
+  return token;
 };
 
 exports.register = async (req, res, next) => {
@@ -52,23 +69,141 @@ exports.register = async (req, res, next) => {
       name: fullName
     });
 
+    // Generate verification token
+    const verificationToken = await generateVerificationToken(user.id, 'email_verification');
+
+    // Send verification email
+    await sendEmail(user.email, 'verification', {
+      verificationLink: `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`
+    });
+
     // Generate token
     const token = generateToken(user);
-    console.log('clientId', clientId);
-    console.log('client', client.clientId);
     
     // Send response
     res.status(201).json({
       status: 'success',
-      message: 'Registration successful',
+      message: 'Registration successful. Please check your email to verify your account.',
       token,
       clientId: client.clientId,
       user: {
         id: user.id,
         fullName: user.fullName,
         email: user.email,
-        role: user.role
+        role: user.role,
+        emailVerified: user.emailVerified
       }
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.verifyEmail = async (req, res, next) => {
+  try {
+    const { token } = req.query;
+
+    // Find token
+    const verificationToken = await Token.findOne({
+      where: {
+        token,
+        type: 'email_verification',
+        used: false,
+        expiresAt: {
+          [Op.gt]: new Date()
+        }
+      },
+      include: [{
+        model: User,
+        as: 'User'
+      }]
+    });
+
+    if (!verificationToken) {
+      throw new ApiError(400, 'Invalid or expired verification token');
+    }
+
+    // Update user
+    await verificationToken.User.update({ emailVerified: true });
+
+    // Mark token as used
+    await verificationToken.update({ used: true });
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Email verified successfully'
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.forgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+
+    // Find user
+    const user = await User.findOne({ where: { email } });
+    if (!user) {
+      throw new ApiError(404, 'User not found');
+    }
+
+    // Generate reset token
+    const resetToken = await generateVerificationToken(user.id, 'password_reset');
+
+    // Send reset email
+    await sendEmail(user.email, 'password_reset', {
+      resetLink: `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`
+    });
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Password reset instructions sent to your email'
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.resetPassword = async (req, res, next) => {
+  try {
+    const { token, password } = req.body;
+
+    // Find token
+    const resetToken = await Token.findOne({
+      where: {
+        token,
+        type: 'password_reset',
+        used: false,
+        expiresAt: {
+          [Op.gt]: new Date()
+        }
+      },
+      include: [{
+        model: User,
+        as: 'User'
+      }]
+    });
+
+    if (!resetToken) {
+      throw new ApiError(400, 'Invalid or expired reset token');
+    }
+
+    // Hash new password
+    const hash = await bcrypt.hash(password, 10);
+
+    // Update user
+    await resetToken.User.update({
+      password: hash,
+      lastPasswordReset: new Date()
+    });
+
+    // Mark token as used
+    await resetToken.update({ used: true });
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Password reset successful'
     });
   } catch (err) {
     next(err);
@@ -176,7 +311,8 @@ exports.getProfile = async (req, res, next) => {
         fullName: user.fullName,
         email: user.email,
         role: user.role,
-        clientId: clientId
+        clientId: clientId,
+        emailVerified: user.emailVerified
       }
     });
   } catch (err) {
@@ -231,6 +367,34 @@ exports.updateProfile = async (req, res, next) => {
         email: user.email,
         role: user.role
       }
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.resendVerification = async (req, res, next) => {
+  try {
+    const user = await User.findByPk(req.user.id);
+    if (!user) {
+      throw new ApiError(404, 'User not found');
+    }
+
+    if (user.emailVerified) {
+      throw new ApiError(400, 'Email is already verified');
+    }
+
+    // Generate new verification token
+    const verificationToken = await generateVerificationToken(user.id, 'email_verification');
+
+    // Send verification email
+    await sendEmail(user.email, 'verification', {
+      verificationLink: `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`
+    });
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Verification email sent successfully'
     });
   } catch (err) {
     next(err);

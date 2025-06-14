@@ -1,18 +1,36 @@
 const nodemailer = require('nodemailer');
-const { SESClient, SendEmailCommand } = require('@aws-sdk/client-ses');
 const logger = require('../utils/logger');
 
-// Initialize AWS SES client
-const ses = new SESClient({
-  region: process.env.AWS_REGION,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+// Create reusable transporter object using SMTP transport
+const transporter = nodemailer.createTransport({
+  service: 'gmail',  // Using Gmail as the service
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASSWORD
   }
 });
 
 // Email templates
 const templates = {
+  verification: {
+    subject: 'Verify Your Account - ChatBot as a Service',
+    body: ({ verificationLink }) => `
+      <h2>Welcome to ChatBot as a Service!</h2>
+      <p>Please verify your email address by clicking the link below:</p>
+      <p><a href="${verificationLink}">Verify Email Address</a></p>
+      <p>If you did not create an account, please ignore this email.</p>
+    `
+  },
+  password_reset: {
+    subject: 'Password Reset Request - ChatBot as a Service',
+    body: ({ resetLink }) => `
+      <h2>Password Reset Request</h2>
+      <p>You have requested to reset your password. Click the link below to proceed:</p>
+      <p><a href="${resetLink}">Reset Password</a></p>
+      <p>If you did not request this, please ignore this email.</p>
+      <p>This link will expire in 1 hour.</p>
+    `
+  },
   payment_success: {
     subject: 'Payment Successful - ChatBot as a Service',
     body: ({ amount, planName, invoiceUrl }) => `
@@ -51,79 +69,39 @@ const templates = {
   }
 };
 
-async function sendPaymentEmail(userId, templateName, data) {
+async function sendEmail(to, templateName, data) {
   try {
-    // Get user email from database
-    const user = await User.findByPk(userId);
-    if (!user || !user.email) {
-      throw new Error('User email not found');
-    }
-
     const template = templates[templateName];
     if (!template) {
       throw new Error(`Email template '${templateName}' not found`);
     }
 
-    const params = {
-      Source: process.env.SES_FROM_EMAIL,
-      Destination: {
-        ToAddresses: [user.email]
-      },
-      Message: {
-        Subject: {
-          Data: template.subject,
-          Charset: 'UTF-8'
-        },
-        Body: {
-          Html: {
-            Data: template.body(data),
-            Charset: 'UTF-8'
-          }
-        }
-      }
+    const mailOptions = {
+      from: process.env.EMAIL_FROM,
+      to,
+      subject: template.subject,
+      html: template.body(data)
     };
 
-    const command = new SendEmailCommand(params);
-    await ses.send(command);
-
+    const info = await transporter.sendMail(mailOptions);
+    
     logger.info(`Email sent successfully`, {
       template: templateName,
-      userId,
-      email: user.email
+      to,
+      messageId: info.messageId
     });
+
+    return info;
   } catch (error) {
     logger.error('Failed to send email', {
       error,
       template: templateName,
-      userId
+      to
     });
     throw error;
   }
 }
 
-// Fallback email sender using nodemailer (for development)
-const devMailer = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: process.env.SMTP_PORT,
-  secure: process.env.SMTP_SECURE === 'true',
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS
-  }
-});
-
-async function sendDevEmail(to, subject, html) {
-  if (process.env.NODE_ENV === 'development') {
-    await devMailer.sendMail({
-      from: process.env.SMTP_FROM,
-      to,
-      subject,
-      html
-    });
-  }
-}
-
 module.exports = {
-  sendPaymentEmail,
-  sendDevEmail
+  sendEmail
 }; 
