@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import EmailVerificationWarning from '../EmailVerificationWarning';
 import {
   HomeIcon,
   DocumentTextIcon,
@@ -170,6 +171,7 @@ const DashboardLayout = ({ children }) => {
 
         <main className="flex-1 pb-8">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <EmailVerificationWarning />
             {children}
           </div>
         </main>

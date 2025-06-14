@@ -3,7 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
 const PrivateRoute = ({ children, requirePlan = false }) => {
-  const { user, loading, hasPlan } = useAuth();
+  const { user, loading } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -18,9 +18,9 @@ const PrivateRoute = ({ children, requirePlan = false }) => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (requirePlan && !hasPlan) {
-    return <Navigate to="/buy" state={{ from: location }} replace />;
-  }
+  // if (requirePlan && !hasPlan) {
+  //   return <Navigate to="/plans" state={{ from: location }} replace />;
+  // }
 
   return children;
 };
