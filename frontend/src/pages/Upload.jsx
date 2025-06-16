@@ -128,49 +128,51 @@ const Upload = () => {
     <DashboardLayout>
       <div className="py-6">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="bg-white dark:bg-gray-800 shadow sm:rounded-lg">
-            <div className="px-4 py-5 sm:p-6">
-              <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-white">
-                Upload Document
-              </h3>
-              <div className="mt-2 max-w-xl text-sm text-gray-500 dark:text-gray-400">
-                <p>Upload a PDF document to train your chatbot. The document will be processed and used to answer user queries.</p>
-              </div>
-              <form onSubmit={handleUpload} className="mt-5">
-                <div className="flex items-center">
-                  <label className="block">
-                    <span className="sr-only">Choose file</span>
-                    <input
-                      type="file"
-                      accept=".pdf"
-                      onChange={handleFileChange}
-                      className="block w-full text-sm text-gray-500 dark:text-gray-400
-                        file:mr-4 file:py-2 file:px-4
-                        file:rounded-md file:border-0
-                        file:text-sm file:font-semibold
-                        file:bg-primary-50 file:text-primary-700
-                        hover:file:bg-primary-100
-                        dark:file:bg-primary-900 dark:file:text-primary-300"
-                    />
-                  </label>
-                  <button
-                    type="submit"
-                    disabled={uploading || !file}
-                    className="ml-3 btn-primary"
-                  >
-                    {uploading ? (
-                      <div className="flex items-center">
-                        <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white mr-2"></div>
-                        Uploading...
-                      </div>
-                    ) : (
-                      'Upload'
-                    )}
-                  </button>
+          {!currentDocument && (
+            <div className="bg-white dark:bg-gray-800 shadow sm:rounded-lg">
+              <div className="px-4 py-5 sm:p-6">
+                <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-white">
+                  Upload Document
+                </h3>
+                <div className="mt-2 max-w-xl text-sm text-gray-500 dark:text-gray-400">
+                  <p>Upload a PDF document to train your chatbot. The document will be processed and used to answer user queries.</p>
                 </div>
-              </form>
+                <form onSubmit={handleUpload} className="mt-5">
+                  <div className="flex items-center">
+                    <label className="block">
+                      <span className="sr-only">Choose file</span>
+                      <input
+                        type="file"
+                        accept=".pdf"
+                        onChange={handleFileChange}
+                        className="block w-full text-sm text-gray-500 dark:text-gray-400
+                file:mr-4 file:py-2 file:px-4
+                file:rounded-md file:border-0
+                file:text-sm file:font-semibold
+                file:bg-primary-50 file:text-primary-700
+                hover:file:bg-primary-100
+                dark:file:bg-primary-900 dark:file:text-primary-300"
+                      />
+                    </label>
+                    <button
+                      type="submit"
+                      disabled={uploading || !file}
+                      className="ml-3 btn-primary"
+                    >
+                      {uploading ? (
+                        <div className="flex items-center">
+                          <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white mr-2"></div>
+                          Uploading...
+                        </div>
+                      ) : (
+                        'Upload'
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Current Document */}
           <div className="mt-8 bg-white dark:bg-gray-800 shadow sm:rounded-lg">
