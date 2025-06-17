@@ -113,16 +113,16 @@ exports.verifyEmail = async (req, res, next) => {
           [Op.gt]: new Date()
         }
       },
-      include: [{
-        model: User,
-        as: 'User'
-      }]
+      include: [User]
     });
 
     if (!verificationToken) {
-      throw new ApiError(400, 'Invalid or expired verification token');
+      return res.status(400).json({
+        status: 'fail',
+        message: 'Invalid or expired verification token'
+      });
     }
-
+    console.log("verificationToken:: ", verificationToken.User.dataValues);
     // Update user
     await verificationToken.User.update({ emailVerified: true });
 

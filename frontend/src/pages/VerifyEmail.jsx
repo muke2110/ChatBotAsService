@@ -26,7 +26,7 @@ const VerifyEmail = () => {
           // Redirect to login after 2 seconds
           setTimeout(() => {
             navigate('/login');
-          }, 2000);
+          }, 5000);
         } else {
           setError(data.message || 'Verification failed');
         }
