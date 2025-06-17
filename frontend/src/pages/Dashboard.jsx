@@ -3,7 +3,6 @@ import { useAuth } from '../contexts/AuthContext';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { DocumentTextIcon, ChatBubbleLeftIcon, ClockIcon, UserCircleIcon } from '@heroicons/react/24/outline';
 import { Link } from 'react-router-dom';
-import NoPlanWarning from '../components/NoPlanWarning';
 
 const Dashboard = () => {
   const { user, clientId } = useAuth();
@@ -93,11 +92,6 @@ const Dashboard = () => {
     <DashboardLayout>
       <div className="py-6">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 md:px-8">
-          {/* {console.log("planInfo:::::: ", planInfo)}
-          {console.log("user:::::: ", user)} */}
-          {/* No Plan Warning */}
-          {(!planInfo || !planInfo.status === 'active') && <NoPlanWarning />}
-
           {/* Welcome and Profile Section */}
           <div className="bg-white dark:bg-gray-800 shadow sm:rounded-lg mb-8">
             <div className="px-4 py-5 sm:p-6">

@@ -1,5 +1,5 @@
 const { DataTypes } = require('sequelize');
-const {sequelize} = require('../config/database');
+const { sequelize } = require('../config/database');
 
 const Plan = sequelize.define('Plan', {
   id: {
@@ -65,7 +65,28 @@ const Plan = sequelize.define('Plan', {
   isActive: {
     type: DataTypes.BOOLEAN,
     defaultValue: true
+  },
+
+  // ✅ Newly added fields to fix the warning
+  embeddingModel: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  responseModel: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  searchResults: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 1
+  },
+  maxVectorChunks: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 500
   }
+
 }, {
   timestamps: true
 });

@@ -1,5 +1,6 @@
 const { UserPlan } = require('../models');
 const { ApiError } = require('../utils/apiError');
+const { getModelConfig } = require('../utils/planUtils');
 const logger = require('../utils/logger');
 
 exports.verifyActivePlan = async (req, res, next) => {
@@ -27,6 +28,16 @@ exports.verifyActivePlan = async (req, res, next) => {
 
     // Add plan details to request object for use in other middleware/controllers
     req.userPlan = userPlan;
+    
+    // Also add model configuration for easy access
+    try {
+      const modelConfig = await getModelConfig(req.user.id);
+      req.modelConfig = modelConfig;
+    } catch (error) {
+      logger.warn('Failed to get model config for user', { userId: req.user.id, error: error.message });
+      // Don't fail the request, just log the warning
+    }
+    
     next();
   } catch (error) {
     next(error);

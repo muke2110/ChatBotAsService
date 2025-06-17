@@ -2,12 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import toast from 'react-hot-toast';
-import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
 const Settings = () => {
   const { token, clientId, setClientId } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [showWarning, setShowWarning] = useState(false);
   const [settings, setSettings] = useState({
     theme: {
       primaryColor: '#0ea5e9',
@@ -100,7 +98,6 @@ const Settings = () => {
         setClientId(data.clientId);
         localStorage.setItem('clientId', data.clientId);
         toast.success('Client ID regenerated successfully! Please update your website script.');
-        setShowWarning(false);
       } else {
         throw new Error('No client ID received from server');
       }
@@ -133,7 +130,7 @@ const Settings = () => {
                     </code>
                     <button
                       type="button"
-                      onClick={() => setShowWarning(true)}
+                      onClick={regenerateClientId}
                       disabled={loading}
                       className="btn-secondary"
                     >
@@ -143,50 +140,6 @@ const Settings = () => {
                 </div>
               </div>
             </div>
-
-            {/* Warning Modal */}
-            {showWarning && (
-              <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-                <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6">
-                  <div className="flex items-center mb-4">
-                    <ExclamationTriangleIcon className="h-6 w-6 text-yellow-400 mr-2" />
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                      Warning: Regenerating Client ID
-                    </h3>
-                  </div>
-                  <div className="mt-2">
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      This action will invalidate your current Client ID. You will need to:
-                    </p>
-                    <ul className="mt-2 text-sm text-gray-500 dark:text-gray-400 list-disc list-inside">
-                      <li>Update your website's integration script with the new Client ID</li>
-                      <li>Update any existing API calls using the old Client ID</li>
-                      <li>Reconfigure any third-party integrations using this Client ID</li>
-                    </ul>
-                    <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
-                      Are you sure you want to proceed?
-                    </p>
-                  </div>
-                  <div className="mt-6 flex justify-end space-x-3">
-                    <button
-                      type="button"
-                      onClick={() => setShowWarning(false)}
-                      className="btn-secondary"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={regenerateClientId}
-                      disabled={loading}
-                      className="btn-primary"
-                    >
-                      {loading ? 'Regenerating...' : 'Yes, Regenerate'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* Theme Settings */}
             <div className="bg-white dark:bg-gray-800 shadow sm:rounded-lg">

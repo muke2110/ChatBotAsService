@@ -7,25 +7,16 @@ const { s3Client } = require('../config/aws');
 const { 
   PutObjectCommand, 
   GetObjectCommand, 
-  DeleteObjectCommand,
-  ListObjectsCommand 
+  // DeleteObjectCommand,
+  // ListObjectsCommand 
 } = require('@aws-sdk/client-s3');
 const { pipeline } = require('stream');
 const util = require('util');
 const logger = require('../utils/logger');
-const NodeCache = require('node-cache');
 const { ApiError } = require('../utils/apiError');
-const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+// const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 
 const pipelineAsync = util.promisify(pipeline);
-
-// Cache configuration
-const indexCache = new NodeCache({
-  stdTTL: 3600, // Cache for 1 hour
-  checkperiod: 120, // Check for expired keys every 2 minutes
-  useClones: false, // Store references to save memory
-  maxKeys: 100 // Maximum number of indices to cache
-});
 
 class FaissService {
   constructor() {
@@ -105,21 +96,9 @@ class FaissService {
 
   async loadIndex(modelPath, version = 'latest') {
     try {
-      const cacheKey = `${modelPath}_${version}`;
-      
-      // Check cache first
-      const cachedIndex = indexCache.get(cacheKey);
-      if (cachedIndex) {
-        logger.info('Index loaded from cache', { modelPath, version });
-        return {
-          index: cachedIndex.index,
-          texts: cachedIndex.texts
-        };
-      }
-
       logger.info('Loading index from S3', { modelPath, version });
       const s3Key = `${modelPath}/index/${version}.index`;
-      const tempPath = path.join(this.tempDir, `${cacheKey}.index`);
+      const tempPath = path.join(this.tempDir, `${modelPath.replace(/\//g, '_')}_${version}.index`);
 
       try {
         // Download index from S3
@@ -149,10 +128,6 @@ class FaissService {
         logger.info('Loading associated texts');
         const texts = await this.loadTexts(modelPath, version);
         logger.info('Texts loaded successfully');
-
-        // Cache the index and texts
-        indexCache.set(cacheKey, { index, texts });
-        logger.info('Index and texts cached');
 
         // Cleanup temp file
         try {
@@ -339,11 +314,6 @@ class FaissService {
       await this.saveTexts(texts, modelPath);
       console.log("Texts saved to S3");
 
-      // Update cache
-      console.log("Updating cache...");
-      indexCache.set(modelPath, { index, texts });
-      console.log("Cache updated");
-
       logger.info(`Successfully added ${embeddings.length} vectors to index`, {
         dimension,
         location: modelPath
@@ -386,8 +356,7 @@ class FaissService {
   }
 
   clearCache() {
-    indexCache.flushAll();
-    logger.info('Index cache cleared');
+    logger.info('No cache to clear');
   }
 }
 

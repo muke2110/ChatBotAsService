@@ -7,11 +7,14 @@ const faissService = require('../services/faissService');
 const { ApiError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const { Client, Document } = require('../models');
+const { getModelConfig } = require('../utils/planUtils');
 
 exports.uploadAndEmbedFiles = async (req, res, next) => {
   try {
     const files = req.files;
     const modelPath = req.s3ModelPath;
+    const userId = req.user.id; // Get user ID for plan-specific models
+    
     const client = await Client.findOne({
       where: { s3ModelPath: modelPath }
     });
@@ -30,7 +33,8 @@ exports.uploadAndEmbedFiles = async (req, res, next) => {
 
     logger.info(`Processing ${files.length} files for embedding`, {
       modelPath,
-      fileCount: files.length
+      fileCount: files.length,
+      userId
     });
 
     const processedDocuments = [];
@@ -51,12 +55,12 @@ exports.uploadAndEmbedFiles = async (req, res, next) => {
 
 
       try {
-        // Extract text and create chunks
+        // Extract text and create chunks using plan-specific configuration
         const text = await fileService.extractText(file);
-        const chunks = chunkService.chunkText(text);
+        const chunks = await chunkService.chunkText(text, userId);
         
-        // Generate embeddings for chunks
-        const embeddings = await embedService.generateEmbeddings(chunks);
+        // Generate embeddings for chunks using plan-specific model
+        const embeddings = await embedService.generateEmbeddings(chunks, userId);
         
         if (!embeddings || embeddings.length === 0) {
           throw new ApiError(500, 'Failed to generate embeddings');
@@ -79,7 +83,8 @@ exports.uploadAndEmbedFiles = async (req, res, next) => {
         logger.info(`Processed file ${file.originalname}`, {
           modelPath,
           chunkCount: chunks.length,
-          documentId: document.id
+          documentId: document.id,
+          userId
         });
       } catch (error) {
         // Update document status to failed
@@ -91,7 +96,8 @@ exports.uploadAndEmbedFiles = async (req, res, next) => {
 
     logger.info('Files processed and embeddings stored successfully', {
       modelPath,
-      documentsProcessed: processedDocuments.length
+      documentsProcessed: processedDocuments.length,
+      userId
     });
 
     res.status(200).json({
@@ -109,7 +115,8 @@ exports.uploadAndEmbedFiles = async (req, res, next) => {
   } catch (error) {
     logger.error('Error in uploadAndEmbedFiles', {
       error,
-      modelPath: req.s3ModelPath
+      modelPath: req.s3ModelPath,
+      userId: req.user.id
     });
     next(error);
   }
@@ -119,6 +126,7 @@ exports.queryEmbeddings = async (req, res, next) => {
   try {
     const { query, limit = 5 } = req.body;
     const modelPath = req.s3ModelPath;
+    const userId = req.user.id; // Get user ID for plan-specific models
 
     if (!query) {
       throw new ApiError(400, 'Query is required');
@@ -130,16 +138,22 @@ exports.queryEmbeddings = async (req, res, next) => {
 
     logger.info('Processing query request', {
       modelPath,
-      queryLength: query.length
+      queryLength: query.length,
+      userId
     });
 
-    const queryEmbedding = await embedService.generateEmbeddings([query]);
+    // Get user's plan configuration for search results
+    const modelConfig = await getModelConfig(userId);
+    const searchResults = modelConfig.searchResults || limit; // Use plan-specific or provided limit
+
+    // Generate query embedding using plan-specific model
+    const queryEmbedding = await embedService.generateEmbeddings([query], userId);
     // logger.info('Query embeddings generated', { queryEmbedding });
     if (!queryEmbedding || queryEmbedding.length === 0) {
       throw new Error('Failed to generate query embedding');
     }
 
-    const results = await faissService.search(queryEmbedding[0], limit, modelPath);
+    const results = await faissService.search(queryEmbedding[0], searchResults, modelPath);
     if (!results || results.length === 0) {
       return res.json({
         answer: "I don't have any documents to search through yet. Please upload some documents first.",
@@ -149,7 +163,8 @@ exports.queryEmbeddings = async (req, res, next) => {
     }
     logger.info('Query processed successfully', {
       modelPath,
-      resultCount: results.length
+      resultCount: results.length,
+      userId
     });
 
     // res.json({
@@ -166,9 +181,10 @@ exports.queryEmbeddings = async (req, res, next) => {
 
     // Get the most relevant text
     const context = results.map(result => result.text);
+    // console.log("context:: ", context[0]);
 
-    // Generate response using RAG
-    const finalResult = await ragService.generateResponse(query, context[0]);
+    // Generate response using plan-specific RAG model
+    const finalResult = await ragService.generateResponse(query, context[0], userId);
     logger.info('Final result generated', { finalResult });
     res.json({
       answer: finalResult,
@@ -183,7 +199,8 @@ exports.queryEmbeddings = async (req, res, next) => {
   } catch (error) {
     logger.error('Error in queryEmbeddings', {
       error,
-      modelPath: req.s3ModelPath
+      modelPath: req.s3ModelPath,
+      userId: req.user.id
     });
     next(error);
   }
