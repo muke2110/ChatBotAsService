@@ -7,3 +7,5 @@ postman_collection.json
 
 /frontend/node_modules
 /frontend/package-lock.json
+
+/logs/*
