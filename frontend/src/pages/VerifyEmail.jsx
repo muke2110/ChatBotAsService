@@ -23,7 +23,7 @@ const VerifyEmail = () => {
 
         if (response.ok) {
           toast.success('Email verified successfully!');
-          // Redirect to login after 2 seconds
+          // Redirect to login after 3 seconds
           setTimeout(() => {
             navigate('/login');
           }, 3000);

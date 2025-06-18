@@ -235,15 +235,17 @@ const PricingPlans = ({ isAuthenticated = false }) => {
 
                 <button
                   onClick={() => handlePlanAction(plan.id)}
-                  disabled={loading || (currentPlan && currentPlan.id === plan.id)}
+                  disabled={loading || (currentPlan && currentPlan.id === plan.id) || (currentPlan && currentPlan.id !== plan.id)}
                   className={`mt-8 block w-full py-3 px-6 border border-transparent rounded-md text-center font-medium ${
-                    currentPlan && currentPlan.id === plan.id
+                    currentPlan
                       ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
                       : 'bg-primary-600 text-white hover:bg-primary-700'
                   }`}
                 >
                   {currentPlan && currentPlan.id === plan.id
                     ? 'Current Plan'
+                    : currentPlan
+                    ? 'Plan Already Active'
                     : loading
                     ? 'Processing...'
                     : isAuthenticated

@@ -8,7 +8,11 @@
     "dev": "nodemon index.js",
     "test": "jest --coverage",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "migrate": "node scripts/runMigrations.js",
+    "migrate:widget": "node run-migration.js",
+    "migrate:all": "node run-all-migrations.js",
+    "migrate:analytics": "node create-analytics-table.js"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.823.0",

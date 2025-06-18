@@ -6,15 +6,19 @@ const ragService = require('../services/ragService');
 const faissService = require('../services/faissService');
 const { ApiError } = require('../utils/apiError');
 const logger = require('../utils/logger');
-const { Client, Document } = require('../models');
+const { Client, Document, ChatbotWidget } = require('../models');
 const { getModelConfig } = require('../utils/planUtils');
 
 exports.uploadAndEmbedFiles = async (req, res, next) => {
   try {
     const files = req.files;
     const modelPath = req.s3ModelPath;
+    // const widget = req.widget;
+    const { widgetId } = req.body;
     const userId = req.user.id; // Get user ID for plan-specific models
-    
+    let s3Prefix;
+    let widget;
+
     const client = await Client.findOne({
       where: { s3ModelPath: modelPath }
     });
@@ -31,28 +35,50 @@ exports.uploadAndEmbedFiles = async (req, res, next) => {
       throw new ApiError(400, 'Model path is required');
     }
 
+    // If widgetId is provided, use widget-specific prefix
+    if (widgetId) {
+      widget = await ChatbotWidget.findOne({
+        where: { 
+          widgetId,
+          userId: req.user.id,
+          isActive: true 
+        }
+      });
+
+      if (!widget) {
+        return res.status(404).json({ message: 'Widget not found' });
+      }
+      logger.info("Got into the s3 prefix and took the seperate prefix")
+      s3Prefix = `${client.s3ModelPath}/${widget.s3Prefix}`;
+      logger.info(`This is the s3 prefix::: ${s3Prefix}`)
+    }
+
+
     logger.info(`Processing ${files.length} files for embedding`, {
       modelPath,
+      s3Prefix,
       fileCount: files.length,
-      userId
+      userId,
+      widgetId: widget?.id
     });
 
     const processedDocuments = [];
     console.log("client.s3ModelPath:: ", client.s3ModelPath);
+    console.log("s3Prefix:: ", s3Prefix);
 
     for (const file of files) {
       // Create document record
       const document = await Document.create({
         clientId: client.id,
+        widgetId: widget?.id || null,
         name: file.originalname,
         size: file.size,
         status: 'processing',
-        s3Key: `${client.s3ModelPath}`,
+        s3Key: s3Prefix,
         chunkCount: 0,
         chunkPaths: []
       });
       console.log("document s3key:: ", document.s3Key);
-
 
       try {
         // Extract text and create chunks using plan-specific configuration
@@ -66,11 +92,11 @@ exports.uploadAndEmbedFiles = async (req, res, next) => {
           throw new ApiError(500, 'Failed to generate embeddings');
         }
 
-        // Upload chunks and embeddings to S3
-        const s3Paths = await s3Service.uploadEmbeddings(chunks, embeddings, modelPath);
+        // Upload chunks and embeddings to S3 using widget-specific prefix
+        const s3Paths = await s3Service.uploadEmbeddings(chunks, embeddings, s3Prefix);
         
-        // Add to FAISS index
-        await faissService.addToIndex(chunks, embeddings, modelPath);
+        // Add to FAISS index using widget-specific prefix
+        await faissService.addToIndex(chunks, embeddings, s3Prefix);
 
         // Update document with chunk information
         document.chunkCount = chunks.length;
@@ -82,9 +108,11 @@ exports.uploadAndEmbedFiles = async (req, res, next) => {
 
         logger.info(`Processed file ${file.originalname}`, {
           modelPath,
+          s3Prefix,
           chunkCount: chunks.length,
           documentId: document.id,
-          userId
+          userId,
+          widgetId: widget?.id
         });
       } catch (error) {
         // Update document status to failed
@@ -96,13 +124,14 @@ exports.uploadAndEmbedFiles = async (req, res, next) => {
 
     logger.info('Files processed and embeddings stored successfully', {
       modelPath,
+      s3Prefix,
       documentsProcessed: processedDocuments.length,
-      userId
+      userId,
+      widgetId: widget?.id
     });
 
-    res.status(200).json({
-      success: true,
-      message: 'Files processed and embeddings stored successfully',
+    res.json({
+      message: 'Files processed successfully',
       documents: processedDocuments.map(doc => ({
         id: doc.id,
         name: doc.name,
@@ -113,11 +142,6 @@ exports.uploadAndEmbedFiles = async (req, res, next) => {
       }))
     });
   } catch (error) {
-    logger.error('Error in uploadAndEmbedFiles', {
-      error,
-      modelPath: req.s3ModelPath,
-      userId: req.user.id
-    });
     next(error);
   }
 };

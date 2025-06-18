@@ -96,4 +96,13 @@ export const queryAPI = {
   getHistory: () => api.get('/query/history'),
 };
 
+export const widgetAPI = {
+  getWidgets: () => api.get('/widgets'),
+  createWidget: (data) => api.post('/widgets', data),
+  updateWidget: (widgetId, data) => api.put(`/widgets/${widgetId}`, data),
+  deleteWidget: (widgetId) => api.delete(`/widgets/${widgetId}`),
+  getWidget: (widgetId) => api.get(`/widgets/${widgetId}`),
+  reorderWidgets: (data) => api.post('/widgets/reorder', data),
+};
+
 export default api; 

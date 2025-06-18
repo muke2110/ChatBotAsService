@@ -7,9 +7,128 @@ const Documentation = () => {
       title: 'Getting Started',
       content: [
         {
-          subtitle: 'Integration',
-          text: 'To integrate the chatbot into your website, add the following script to your HTML:',
-          code: `<script src="https://your-domain.com/chatbot.js?clientId=YOUR_CLIENT_ID"></script>`,
+          subtitle: 'Multi-Widget Integration',
+          text: 'Our chatbot service supports multiple widgets per subscription plan. Each widget can have its own documents, settings, and analytics.',
+          items: [
+            'Starter Plan: 1 widget',
+            'Pro Plan: 2 widgets', 
+            'Enterprise Plan: 3 widgets'
+          ]
+        },
+        {
+          subtitle: 'Basic Integration',
+          text: 'To integrate a specific widget into your website, add the following script to your HTML:',
+          code: `<script src="https://your-domain.com/chatbot.js?clientId=YOUR_CLIENT_ID&widgetId=YOUR_WIDGET_ID"></script>`,
+        }
+      ]
+    },
+    {
+      title: 'Widget Management',
+      content: [
+        {
+          subtitle: 'Creating Widgets',
+          text: 'Widgets are automatically created when you subscribe to a plan. You can manage them from the Widgets page in your dashboard.',
+          items: [
+            'Each widget has a unique widgetId',
+            'Widgets can be renamed and customized',
+            'Each widget has its own S3 storage prefix',
+            'Widgets can be activated/deactivated'
+          ]
+        },
+        {
+          subtitle: 'Widget Settings',
+          text: 'Each widget can have custom settings:',
+          items: [
+            'Theme colors (primary, text, background)',
+            'Chat widget position (bottom-right, bottom-left, top-right, top-left)',
+            'Welcome message',
+            'Bot name',
+            'Custom styling options'
+          ]
+        }
+      ]
+    },
+    {
+      title: 'Document Management',
+      content: [
+        {
+          subtitle: 'Widget-Specific Documents',
+          text: 'Each widget can have its own set of documents for training:',
+          items: [
+            'Upload PDF documents to specific widgets',
+            'Documents are processed and embedded automatically',
+            'Each widget has separate document storage',
+            'Documents are chunked and indexed for fast retrieval'
+          ]
+        },
+        {
+          subtitle: 'Document Processing',
+          items: [
+            'Supported format: PDF',
+            'Maximum file size: 10MB per file',
+            'Automatic text extraction and chunking',
+            'Vector embeddings generated using AWS Bedrock',
+            'FAISS indexing for fast similarity search'
+          ]
+        }
+      ]
+    },
+    {
+      title: 'Analytics & Monitoring',
+      content: [
+        {
+          subtitle: 'Widget Analytics',
+          text: 'Track performance and usage for each widget:',
+          items: [
+            'Query count and success rates',
+            'Average response times',
+            'Error tracking and debugging',
+            'Daily/weekly/monthly breakdowns',
+            'Recent query history'
+          ]
+        },
+        {
+          subtitle: 'Performance Metrics',
+          items: [
+            'Response time tracking (milliseconds)',
+            'Success rate percentage',
+            'Error rate monitoring',
+            'Query volume trends',
+            'Widget-specific performance comparison'
+          ]
+        }
+      ]
+    },
+    {
+      title: 'API Reference',
+      content: [
+        {
+          subtitle: 'Query Endpoint',
+          text: 'Send queries to your widget:',
+          code: `POST /api/v1/query
+Headers: {
+  'Content-Type': 'application/json',
+  'X-Client-ID': 'your-client-id'
+}
+Body: {
+  "query": "Your question here",
+  "widgetId": "your-widget-id"
+}`,
+        },
+        {
+          subtitle: 'Response Format',
+          code: `{
+  "answer": "Generated response",
+  "matches": [
+    {
+      "text": "Relevant document text",
+      "score": 0.95,
+      "distance": 0.05
+    }
+  ],
+  "status": "SUCCESS",
+  "responseTime": 1250
+}`,
         }
       ]
     },
@@ -19,32 +138,17 @@ const Documentation = () => {
         {
           subtitle: 'Authentication Errors',
           items: [
-            { code: '401', description: 'Unauthorized - Invalid or missing authentication token' },
-            { code: '403', description: 'Forbidden - Insufficient permissions' }
+            { code: '401', description: 'Unauthorized - Invalid or missing client ID' },
+            { code: '403', description: 'Forbidden - Insufficient permissions or inactive widget' }
           ]
         },
         {
           subtitle: 'API Errors',
           items: [
             { code: '400', description: 'Bad Request - Invalid parameters or request body' },
-            { code: '404', description: 'Not Found - Resource not found' },
+            { code: '404', description: 'Not Found - Widget or document not found' },
             { code: '429', description: 'Too Many Requests - Rate limit exceeded' },
             { code: '500', description: 'Internal Server Error - Something went wrong on our end' }
-          ]
-        }
-      ]
-    },
-    {
-      title: 'Configuration',
-      content: [
-        {
-          subtitle: 'Customization Options',
-          text: 'You can customize the chatbot appearance and behavior through the Settings page:',
-          items: [
-            'Theme colors (primary, text, background)',
-            'Chat widget position',
-            'Welcome message',
-            'Bot name'
           ]
         }
       ]
@@ -58,7 +162,18 @@ const Documentation = () => {
             'Keep documents clear and concise',
             'Use proper formatting for better understanding',
             'Update documents regularly to maintain accuracy',
-            'Remove outdated or irrelevant information'
+            'Remove outdated or irrelevant information',
+            'Organize content logically for better retrieval'
+          ]
+        },
+        {
+          subtitle: 'Widget Management',
+          items: [
+            'Use descriptive widget names',
+            'Customize themes to match your brand',
+            'Test widgets thoroughly before going live',
+            'Monitor analytics regularly',
+            'Keep widget settings organized'
           ]
         },
         {
@@ -66,8 +181,9 @@ const Documentation = () => {
           items: [
             'Test the chatbot thoroughly before going live',
             'Monitor chatbot performance regularly',
-            'Keep your API keys secure',
-            'Implement proper error handling'
+            'Keep your client IDs secure',
+            'Implement proper error handling',
+            'Use widget-specific scripts for different pages'
           ]
         }
       ]
@@ -127,28 +243,30 @@ const Documentation = () => {
             </div>
           ))}
 
-          <div className="bg-gray-50 p-6 rounded-lg">
-            <h3 className="text-lg font-semibold mb-4">Integration</h3>
-            <p className="text-gray-600 mb-4">
-              Add this script to your website to integrate the chatbot:
+          <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg">
+            <h3 className="text-lg font-semibold mb-4">Complete Integration Example</h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              Here's a complete example of how to integrate a widget-specific chatbot:
             </p>
             <pre className="bg-gray-800 text-white p-4 rounded-lg overflow-x-auto">
-              <code>{`<script>
+              <code>{`<!-- Add this to your HTML head or before closing body tag -->
+<script>
   window.chatbotConfig = {
     clientId: 'YOUR_CLIENT_ID',
+    widgetId: 'YOUR_WIDGET_ID',
     theme: {
       primaryColor: '#4F46E5',
       backgroundColor: '#ffffff',
       textColor: '#1F2937'
     },
     position: 'bottom-right',
-    apiUrl: 'http://localhost:5000/api/v1'
+    apiUrl: 'https://your-domain.com/api/v1'
   };
 </script>
-<script src="http://localhost:5000/chatbot.js"></script>`}</code>
+<script src="https://your-domain.com/chatbot.js"></script>`}</code>
             </pre>
-            <p className="text-gray-600 mt-4">
-              Replace <code className="bg-gray-100 px-1 py-0.5 rounded">YOUR_CLIENT_ID</code> with your actual client ID from the settings page.
+            <p className="text-gray-600 dark:text-gray-400 mt-4">
+              Replace <code className="bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded">YOUR_CLIENT_ID</code> and <code className="bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded">YOUR_WIDGET_ID</code> with your actual values from the dashboard.
             </p>
           </div>
         </div>

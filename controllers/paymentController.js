@@ -1,7 +1,8 @@
-const { Payment, Plan, UserPlan } = require('../models');
+const { Payment, Plan, UserPlan, Client } = require('../models');
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
 const logger = require('../utils/logger');
+const { createWidgetsForUser } = require('../services/widgetService');
 
 // Check for required environment variables
 if (!process.env.RAZORPAY_KEY || !process.env.RAZORPAY_SECRET) {
@@ -160,6 +161,28 @@ const verifyPayment = async (req, res) => {
                 endDate,
                 autoRenew: true
             });
+        }
+
+        // Get user's client
+        const client = await Client.findOne({
+            where: { userId: req.user.id }
+        });
+
+        if (client) {
+            // Create widgets for the user based on their new plan
+            try {
+                const widgets = await createWidgetsForUser(req.user.id, client.id);
+                logger.info('Widgets created for user after plan activation', {
+                    userId: req.user.id,
+                    widgetsCreated: widgets.length
+                });
+            } catch (widgetError) {
+                logger.error('Error creating widgets for user', {
+                    userId: req.user.id,
+                    error: widgetError
+                });
+                // Don't fail the payment verification if widget creation fails
+            }
         }
 
         logger.info('Subscription activated', {

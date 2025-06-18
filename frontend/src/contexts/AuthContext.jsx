@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { authAPI, plansAPI } from '../services/api';
+import { authAPI, plansAPI, widgetAPI } from '../services/api';
 import { toast } from 'react-hot-toast';
 
 const AuthContext = createContext(null);
@@ -18,14 +18,19 @@ export const AuthProvider = ({ children }) => {
   const [clientId, setClientId] = useState(localStorage.getItem('clientId'));
   const [hasPlan, setHasPlan] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [widgets, setWidgets] = useState([]);
+  const [selectedWidget, setSelectedWidget] = useState(null);
 
   const clearAuth = useCallback(() => {
     localStorage.removeItem('token');
     localStorage.removeItem('clientId');
+    localStorage.removeItem('selectedWidgetId');
     setToken(null);
     setClientId(null);
     setUser(null);
     setHasPlan(false);
+    setWidgets([]);
+    setSelectedWidget(null);
   }, []);
 
   const logout = useCallback(async () => {
@@ -84,13 +89,49 @@ export const AuthProvider = ({ children }) => {
     }
   }, [token]);
 
+  // Fetch user widgets
+  const fetchWidgets = useCallback(async () => {
+    if (!token) return;
+
+    try {
+      const response = await widgetAPI.getWidgets();
+      setWidgets(response.data.widgets || []);
+      
+      // Set selected widget if not already set
+      if (!selectedWidget && response.data.widgets && response.data.widgets.length > 0) {
+        const savedWidgetId = localStorage.getItem('selectedWidgetId');
+        const widgetToSelect = savedWidgetId 
+          ? response.data.widgets.find(w => w.widgetId === savedWidgetId)
+          : response.data.widgets[0];
+        
+        if (widgetToSelect) {
+          setSelectedWidget(widgetToSelect);
+          localStorage.setItem('selectedWidgetId', widgetToSelect.widgetId);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching widgets:', error);
+    }
+  }, [token, selectedWidget]);
+
+  // Update selected widget
+  const updateSelectedWidget = useCallback((widget) => {
+    setSelectedWidget(widget);
+    if (widget) {
+      localStorage.setItem('selectedWidgetId', widget.widgetId);
+    } else {
+      localStorage.removeItem('selectedWidgetId');
+    }
+  }, []);
+
   useEffect(() => {
     if (token) {
       fetchUserData();
+      fetchWidgets();
     } else {
       setLoading(false);
     }
-  }, [token, fetchUserData]);
+  }, [token, fetchUserData, fetchWidgets]);
 
   const login = async (email, password) => {
     try {
@@ -104,6 +145,7 @@ export const AuthProvider = ({ children }) => {
       setClientId(clientId);
       
       await fetchUserData();
+      await fetchWidgets();
       return { success: true };
     } catch (error) {
       console.error('Login error:', error);
@@ -128,6 +170,7 @@ export const AuthProvider = ({ children }) => {
       
       // Fetch user data and wait for it to complete
       await fetchUserData();
+      await fetchWidgets();
       
       // Return success only after everything is complete
       return { success: true };
@@ -154,6 +197,7 @@ export const AuthProvider = ({ children }) => {
       setClientId(clientId);
       
       await fetchUserData();
+      await fetchWidgets();
       return true;
     } catch (error) {
       toast.error(error.response?.data?.message || 'Registration failed');
@@ -167,11 +211,15 @@ export const AuthProvider = ({ children }) => {
     clientId,
     hasPlan,
     loading,
+    widgets,
+    selectedWidget,
     login,
     googleLogin,
     register,
     logout,
     refreshPlanStatus,
+    fetchWidgets,
+    updateSelectedWidget,
     setToken,
     setClientId
   };

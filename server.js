@@ -140,6 +140,7 @@ app.use('/api/v1/settings', require('./routes/settings'));
 app.use('/api/v1/documents', require('./routes/documents'));
 app.use('/api/v1/analytics', require('./routes/analyticsRoutes'));
 app.use('/api/v1/script', require('./routes/scriptRoutes'));
+app.use('/api/v1/widgets', require('./routes/widgetRoutes'));
 
 // Serve React app in production
 if (process.env.NODE_ENV === 'production') {

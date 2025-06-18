@@ -6,6 +6,8 @@ const Payment = require('./payment.model');
 const Client = require('./client.model');
 const Query = require('./query.model');
 const Document = require('./document.model');
+const ChatbotWidget = require('./chatbotWidget.model');
+const QueryAnalytics = require('./queryAnalytics.model');
 
 // Define associations
 const initializeAssociations = () => {
@@ -16,6 +18,7 @@ const initializeAssociations = () => {
     });
     User.hasMany(UserPlan, { foreignKey: 'userId' });
     User.hasMany(Payment, { foreignKey: 'userId' });
+    User.hasMany(ChatbotWidget, { foreignKey: 'userId' });
 
     // Client associations
     Client.belongsTo(User, {
@@ -34,6 +37,10 @@ const initializeAssociations = () => {
     Client.hasMany(Document, {
         foreignKey: 'clientId',
         as: 'documents'
+    });
+    Client.hasMany(ChatbotWidget, {
+        foreignKey: 'clientId',
+        as: 'chatbotWidgets'
     });
 
     // Plan associations
@@ -64,6 +71,34 @@ const initializeAssociations = () => {
         foreignKey: 'clientId',
         as: 'client'
     });
+    Document.belongsTo(ChatbotWidget, {
+        foreignKey: 'widgetId',
+        as: 'widget'
+    });
+
+    // ChatbotWidget associations
+    ChatbotWidget.belongsTo(User, {
+        foreignKey: 'userId',
+        as: 'user'
+    });
+    ChatbotWidget.belongsTo(Client, {
+        foreignKey: 'clientId',
+        as: 'client'
+    });
+    ChatbotWidget.hasMany(Document, {
+        foreignKey: 'widgetId',
+        as: 'documents'
+    });
+    ChatbotWidget.hasMany(QueryAnalytics, {
+        foreignKey: 'widgetId',
+        as: 'analytics'
+    });
+
+    // QueryAnalytics associations
+    QueryAnalytics.belongsTo(ChatbotWidget, {
+        foreignKey: 'widgetId',
+        as: 'widget'
+    });
 };
 
 // Initialize associations
@@ -78,5 +113,7 @@ module.exports = {
     Client,
     Query,
     Document,
+    ChatbotWidget,
+    QueryAnalytics,
     initializeAssociations
 }; 

@@ -1,11 +1,12 @@
-const { Client, Document } = require('../models');
+const { Client, Document, ChatbotWidget } = require('../models');
 const { s3Client } = require('../config/aws');
 const { ListObjectsV2Command, DeleteObjectsCommand, PutObjectCommand } = require('@aws-sdk/client-s3');
 const logger = require('../utils/logger');
 
-// Get current document for a client
+// Get current document for a client and widget
 exports.getCurrentDocument = async (req, res) => {
   try {
+    const { widgetId } = req.query;
     const client = await Client.findOne({
       where: { userId: req.user.id }
     });
@@ -14,9 +15,28 @@ exports.getCurrentDocument = async (req, res) => {
       return res.status(404).json({ message: 'Client not found' });
     }
 
+    let whereClause = { clientId: client.id };
+    
+    // If widgetId is provided, filter by widget
+    if (widgetId) {
+      const widget = await ChatbotWidget.findOne({
+        where: { 
+          widgetId,
+          userId: req.user.id,
+          isActive: true 
+        }
+      });
+
+      if (!widget) {
+        return res.status(404).json({ message: 'Widget not found' });
+      }
+      
+      whereClause.widgetId = widget.id;
+    }
+
     // Get the current document from the database
     const document = await Document.findOne({
-      where: { clientId: client.id },
+      where: whereClause,
       order: [['createdAt', 'DESC']]
     });
 
@@ -31,9 +51,10 @@ exports.getCurrentDocument = async (req, res) => {
   }
 };
 
-// Upload a document
+// Upload a document for a specific widget
 exports.uploadDocument = async (req, res) => {
   try {
+    const { widgetId } = req.body;
     const client = await Client.findOne({
       where: { userId: req.user.id }
     });
@@ -46,11 +67,34 @@ exports.uploadDocument = async (req, res) => {
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
+    let widget = null;
+    let s3Prefix = client.s3ModelPath;
+
+    // If widgetId is provided, use widget-specific prefix
+    if (widgetId) {
+      widget = await ChatbotWidget.findOne({
+        where: { 
+          widgetId,
+          userId: req.user.id,
+          isActive: true 
+        }
+      });
+
+      if (!widget) {
+        return res.status(404).json({ message: 'Widget not found' });
+      }
+      logger.info("Got into the s3 prefix and took the seperate prefix")
+      s3Prefix = `${client.s3ModelPath}/${widget.s3Prefix}`;
+      logger.info(`This is the s3 prefix::: ${s3Prefix}`)
+    }
+
     // First, upload the file to S3
     try {
+      console.log("s3prefix:::", s3Prefix);
+      
       const uploadCommand = new PutObjectCommand({
         Bucket: process.env.AWS_S3_BUCKET,
-        Key: `${client.s3ModelPath}/original/${req.file.originalname}`,
+        Key: `${s3Prefix}/original/${req.file.originalname}`,
         Body: req.file.buffer,
         ContentType: req.file.mimetype
       });
@@ -58,7 +102,9 @@ exports.uploadDocument = async (req, res) => {
       await s3Client.send(uploadCommand);
       logger.info('Successfully uploaded file to S3', {
         fileName: req.file.originalname,
-        clientId: client.id
+        clientId: client.id,
+        widgetId: widget?.id,
+        s3Prefix
       });
     } catch (error) {
       logger.error('Error uploading file to S3:', error);
@@ -71,6 +117,7 @@ exports.uploadDocument = async (req, res) => {
     // Only create document record after successful S3 upload
     const document = await Document.create({
       clientId: client.id,
+      widgetId: widget?.id || null,
       name: req.file.originalname,
       size: req.file.size,
       status: 'processing',
@@ -100,9 +147,10 @@ exports.uploadDocument = async (req, res) => {
   }
 };
 
-// Delete current document
+// Delete current document for a specific widget
 exports.deleteCurrentDocument = async (req, res) => {
   try {
+    const { widgetId } = req.query;
     const client = await Client.findOne({
       where: { userId: req.user.id }
     });
@@ -111,9 +159,31 @@ exports.deleteCurrentDocument = async (req, res) => {
       return res.status(404).json({ message: 'Client not found' });
     }
 
+    let whereClause = { clientId: client.id };
+    let widget = null;
+    let s3Prefix = client.s3ModelPath;
+
+    // If widgetId is provided, filter by widget
+    if (widgetId) {
+      widget = await ChatbotWidget.findOne({
+        where: { 
+          widgetId,
+          userId: req.user.id,
+          isActive: true 
+        }
+      });
+
+      if (!widget) {
+        return res.status(404).json({ message: 'Widget not found' });
+      }
+      
+      whereClause.widgetId = widget.id;
+      s3Prefix = `${client.s3ModelPath}/${widget.s3Prefix}`;
+    }
+
     // Get the current document
     const document = await Document.findOne({
-      where: { clientId: client.id },
+      where: whereClause,
       order: [['createdAt', 'DESC']]
     });
 
@@ -128,7 +198,7 @@ exports.deleteCurrentDocument = async (req, res) => {
       // Get all objects with the document's prefix
       const listCommand = new ListObjectsV2Command({
         Bucket: process.env.AWS_S3_BUCKET,
-        Prefix: `${client.s3ModelPath}/`
+        Prefix: `${s3Prefix}/`
       });
 
       const listedObjects = await s3Client.send(listCommand);
@@ -160,14 +230,16 @@ exports.deleteCurrentDocument = async (req, res) => {
         logger.info('Successfully deleted files from S3', {
           documentId: document.id,
           fileCount: objectsToDelete.length,
-          prefixes: ['embeddings', 'index', 'texts']
+          prefixes: ['embeddings', 'index', 'texts'],
+          widgetId: widget?.id
         });
       } else {
         // If no files found in S3, consider deletion successful
         s3DeletionSuccessful = true;
         logger.info('No files found in S3 to delete', {
           documentId: document.id,
-          clientId: client.id
+          clientId: client.id,
+          widgetId: widget?.id
         });
       }
     } catch (error) {
@@ -183,7 +255,8 @@ exports.deleteCurrentDocument = async (req, res) => {
       await document.destroy();
       logger.info('Successfully deleted document record from database', {
         documentId: document.id,
-        clientId: client.id
+        clientId: client.id,
+        widgetId: widget?.id
       });
     } else {
       return res.status(500).json({ 

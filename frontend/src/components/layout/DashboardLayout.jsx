@@ -12,11 +12,13 @@ import {
   BookOpenIcon,
   Bars3Icon,
   XMarkIcon,
-  ChatBubbleLeftRightIcon
+  ChatBubbleLeftRightIcon,
+  ChevronDownIcon
 } from '@heroicons/react/24/outline';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
+  { name: 'Widgets', href: '/widgets', icon: ChatBubbleLeftRightIcon },
   { name: 'Upload Docs', href: '/upload', icon: DocumentTextIcon },
   { name: 'Script', href: '/script', icon: CodeBracketIcon },
   { name: 'Queries', href: '/test-query', icon: ChatBubbleLeftRightIcon },
@@ -27,13 +29,19 @@ const navigation = [
 
 const DashboardLayout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user, logout } = useAuth();
+  const [widgetDropdownOpen, setWidgetDropdownOpen] = useState(false);
+  const { user, logout, widgets, selectedWidget, updateSelectedWidget } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+
+  const handleWidgetSelect = (widget) => {
+    updateSelectedWidget(widget);
+    setWidgetDropdownOpen(false);
   };
 
   return (
@@ -84,10 +92,7 @@ const DashboardLayout = ({ children }) => {
                 onClick={handleLogout}
                 className="group flex w-full items-center px-2 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700 rounded-md"
               >
-                <ArrowLeftOnRectangleIcon
-                  className="mr-3 h-6 w-6 flex-shrink-0 text-gray-400 group-hover:text-gray-500 dark:text-gray-400 dark:group-hover:text-gray-300"
-                  aria-hidden="true"
-                />
+                <ArrowLeftOnRectangleIcon className="mr-3 h-6 w-6 flex-shrink-0 text-gray-400 group-hover:text-gray-500 dark:text-gray-400 dark:group-hover:text-gray-300" />
                 Logout
               </button>
             </nav>
@@ -95,7 +100,7 @@ const DashboardLayout = ({ children }) => {
         </div>
       </div>
 
-      {/* Static sidebar for desktop */}
+      {/* Desktop sidebar */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
         <div className="flex min-h-0 flex-1 flex-col bg-white dark:bg-gray-800">
           <div className="flex h-16 flex-shrink-0 items-center px-4">
@@ -131,10 +136,7 @@ const DashboardLayout = ({ children }) => {
               onClick={handleLogout}
               className="group flex w-full items-center px-2 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700 rounded-md"
             >
-              <ArrowLeftOnRectangleIcon
-                className="mr-3 h-6 w-6 flex-shrink-0 text-gray-400 group-hover:text-gray-500 dark:text-gray-400 dark:group-hover:text-gray-300"
-                aria-hidden="true"
-              />
+              <ArrowLeftOnRectangleIcon className="mr-3 h-6 w-6 flex-shrink-0 text-gray-400 group-hover:text-gray-500 dark:text-gray-400 dark:group-hover:text-gray-300" />
               Logout
             </button>
           </nav>
@@ -142,7 +144,8 @@ const DashboardLayout = ({ children }) => {
       </div>
 
       {/* Main content */}
-      <div className="lg:pl-64 flex flex-col min-h-screen">
+      <div className="lg:pl-64">
+        {/* Top bar */}
         <div className="sticky top-0 z-10 flex h-16 flex-shrink-0 bg-white dark:bg-gray-800 shadow">
           <button
             type="button"
@@ -152,30 +155,73 @@ const DashboardLayout = ({ children }) => {
             <span className="sr-only">Open sidebar</span>
             <Bars3Icon className="h-6 w-6" aria-hidden="true" />
           </button>
-          <div className="flex flex-1 justify-between px-4">
-            <div className="flex flex-1">
-              <h1 className="text-2xl font-semibold text-gray-900 dark:text-white self-center">
-                {navigation.find((item) => item.href === location.pathname)?.name || 'Dashboard'}
-              </h1>
+          
+          <div className="flex flex-1 justify-between px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-1 items-center">
+              {/* Widget Selector */}
+              {widgets.length > 0 && (
+                <div className="relative">
+                  <button
+                    type="button"
+                    className="inline-flex items-center rounded-md bg-white dark:bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-900 dark:text-white shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600"
+                    onClick={() => setWidgetDropdownOpen(!widgetDropdownOpen)}
+                  >
+                    <ChatBubbleLeftRightIcon className="mr-2 h-4 w-4" />
+                    {selectedWidget ? selectedWidget.name : 'Select Widget'}
+                    <ChevronDownIcon className="ml-2 h-4 w-4" />
+                  </button>
+
+                  {widgetDropdownOpen && (
+                    <div className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white dark:bg-gray-700 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                      <div className="py-1">
+                        {widgets.map((widget) => (
+                          <button
+                            key={widget.widgetId}
+                            onClick={() => handleWidgetSelect(widget)}
+                            className={`block w-full text-left px-4 py-2 text-sm ${
+                              selectedWidget?.widgetId === widget.widgetId
+                                ? 'bg-primary-100 text-primary-900 dark:bg-primary-900 dark:text-primary-100'
+                                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600'
+                            }`}
+                          >
+                            {widget.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-            <div className="ml-4 flex items-center md:ml-6">
-              <div className="flex items-center">
-                <span className="text-gray-700 dark:text-gray-300 mr-2">{user?.fullName}</span>
-                <div className="h-8 w-8 rounded-full bg-primary-600 flex items-center justify-center text-white">
-                  {user?.fullName?.charAt(0).toUpperCase()}
+            
+            <div className="flex items-center">
+              <div className="flex items-center space-x-4">
+                <div className="text-sm text-gray-500 dark:text-gray-400">
+                  Welcome, {user?.name || user?.email}
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <main className="flex-1 pb-8">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <EmailVerificationWarning />
-            {children}
+        {/* Main content area */}
+        <main className="flex-1">
+          <div className="py-6">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+              <EmailVerificationWarning />
+              {children}
+            </div>
           </div>
         </main>
       </div>
+
+      {/* Click outside to close widget dropdown */}
+      {widgetDropdownOpen && (
+        <div 
+          className="fixed inset-0 z-5" 
+          onClick={() => setWidgetDropdownOpen(false)}
+        />
+      )}
     </div>
   );
 };

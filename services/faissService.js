@@ -215,9 +215,25 @@ class FaissService {
         const { index, texts } = await this.loadIndex(modelPath);
         logger.info('Index and texts loaded successfully');
 
-        // Perform search
+        // Get the total number of vectors in the index
+        const ntotal = index.ntotal();
+        logger.info('Index statistics', { ntotal, requestedK: k });
+
+        // Adjust k to not exceed the total number of vectors
+        const adjustedK = Math.min(k, ntotal);
+        if (adjustedK !== k) {
+          logger.info('Adjusted k to match available vectors', { originalK: k, adjustedK, ntotal });
+        }
+
+        // If no vectors in index, return empty results
+        if (ntotal === 0) {
+          logger.info('No vectors in index, returning empty results');
+          return [];
+        }
+
+        // Perform search with adjusted k
         logger.info('Performing vector search');
-        const { distances, labels } = await index.search(queryVector, k);
+        const { distances, labels } = await index.search(queryVector, adjustedK);
         logger.info('Search completed');
 
         // Map results to include texts

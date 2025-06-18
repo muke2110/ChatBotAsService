@@ -20,6 +20,7 @@ import TestQuery from './pages/TestQuery';
 import VerifyEmail from './pages/VerifyEmail';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import Widgets from './pages/Widgets';
 
 function App() {
   return (
@@ -113,6 +114,15 @@ function App() {
             element={
               <PrivateRoute>
                 <Profile />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/widgets"
+            element={
+              <PrivateRoute requirePlan={true}>
+                <Widgets />
               </PrivateRoute>
             }
           />

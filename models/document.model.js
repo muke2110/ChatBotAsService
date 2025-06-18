@@ -15,6 +15,14 @@ const Document = sequelize.define('Document', {
       key: 'id'
     }
   },
+  widgetId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    references: {
+      model: 'chatbot_widgets',
+      key: 'id'
+    }
+  },
   name: {
     type: DataTypes.STRING,
     allowNull: false

@@ -5,6 +5,7 @@ class ChatbotService {
     }
     console.log("config::: ", config);
     this.clientId = config.clientId;
+    this.widgetId = config.widgetId || null;
     this.apiUrl = config.apiUrl || 'https://localhost:3000/api/v1';
     this.position = config.position || 'bottom-right';
     this.theme = config.theme || {
@@ -162,14 +163,20 @@ class ChatbotService {
     this.addMessage('user', message);
 
     try {
+      // Prepare request body
+      const requestBody = { query: message };
+      if (this.widgetId) {
+        requestBody.widgetId = this.widgetId;
+      }
+
       // Send request to backend
-      const response = await fetch(`${this.apiUrl}/query`, {
+      const response = await fetch(`${this.apiUrl}/query/ask`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-Client-ID': this.clientId
         },
-        body: JSON.stringify({ query: message })
+        body: JSON.stringify(requestBody)
       });
 
       const data = await response.json();
