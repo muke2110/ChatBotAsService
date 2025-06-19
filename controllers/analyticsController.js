@@ -319,4 +319,71 @@ exports.getAllWidgetsAnalytics = async (req, res) => {
     logger.error('Error getting all widgets analytics:', error);
     res.status(500).json({ message: 'Failed to get analytics' });
   }
+};
+
+// Get widget query history with plan-based limits
+exports.getWidgetQueryHistory = async (req, res) => {
+  try {
+    const { widgetId } = req.params;
+    const { page = 1, limit = 20 } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    // Validate widget ownership
+    const widget = await ChatbotWidget.findOne({
+      where: {
+        widgetId,
+        userId: req.user.id,
+        isActive: true
+      }
+    });
+    if (!widget) {
+      return res.status(404).json({ message: 'Widget not found' });
+    }
+
+    // Get user plan
+    const userPlan = await UserPlan.findOne({
+      where: { userId: req.user.id, status: 'active' },
+      include: [Plan],
+      order: [['createdAt', 'DESC']]
+    });
+    const planName = userPlan?.Plan?.name?.toLowerCase() || '';
+    let dateLimit = null;
+    if (planName === 'starter') {
+      dateLimit = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+    }
+    // Build query
+    const where = {
+      widgetId: widget.id
+    };
+    if (dateLimit) {
+      where.timestamp = { [Op.gte]: dateLimit };
+    }
+    // Fetch history
+    const { count, rows } = await QueryAnalytics.findAndCountAll({
+      where,
+      order: [['timestamp', 'DESC']],
+      offset,
+      limit: parseInt(limit)
+    });
+    res.json({
+      plan: planName,
+      startDate: userPlan.dataValues.startDate,
+      endDate: userPlan.dataValues.endDate,
+      total: count,
+      page: parseInt(page),
+      totalPages: Math.ceil(count / limit),
+      history: rows.map(q => ({
+        id: q.id,
+        query: q.query,
+        response: q.response,
+        status: q.status,
+        responseTime: q.responseTime,
+        timestamp: q.timestamp
+      })),
+      limitDays: planName === 'starter' ? 14 : null
+    });
+  } catch (error) {
+    logger.error('Error getting widget query history:', error);
+    res.status(500).json({ message: 'Failed to get query history' });
+  }
 }; 

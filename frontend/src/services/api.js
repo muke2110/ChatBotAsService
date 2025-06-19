@@ -105,4 +105,12 @@ export const widgetAPI = {
   reorderWidgets: (data) => api.post('/widgets/reorder', data),
 };
 
+export const analyticsAPI = {
+  getWidgetAnalytics: (widgetId) => api.get(`/analytics/widgets/${widgetId}`),
+  getWidgetHistory: (widgetId, params = {}) => {
+    const search = new URLSearchParams(params).toString();
+    return api.get(`/analytics/widgets/${widgetId}/history${search ? `?${search}` : ''}`);
+  },
+};
+
 export default api; 

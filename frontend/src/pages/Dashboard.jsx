@@ -3,66 +3,64 @@ import { useAuth } from '../contexts/AuthContext';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { DocumentTextIcon, ChatBubbleLeftIcon, ClockIcon, UserCircleIcon } from '@heroicons/react/24/outline';
 import { Link } from 'react-router-dom';
+import { analyticsAPI } from '../services/api';
 
 const Dashboard = () => {
-  const { user, clientId } = useAuth();
+  const { user, clientId, selectedWidget } = useAuth();
   const [stats, setStats] = useState({
     documentsUploaded: 0,
     totalChats: 0,
     averageResponseTime: '< 1s',
-    totalQueries: 0
+    totalQueries: 0,
+    successRate: 0,
+    errorQueries: 0,
+    noDocumentsQueries: 0
   });
   const [planInfo, setPlanInfo] = useState(null);
+  const [startDate, setStartDate] = useState();
+  const [endDate, setEndDate] = useState();
+  const [history, setHistory] = useState([]);
+  const [historyLimitDays, setHistoryLimitDays] = useState(null);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyTotalPages, setHistoryTotalPages] = useState(1);
+  const [loading, setLoading] = useState(false); // Fixed typo: loadng -> loading
 
   useEffect(() => {
     const fetchData = async () => {
+      if (!selectedWidget) return;
+      setLoading(true);
       try {
-        const token = localStorage.getItem('token');
-        
-        // Fetch analytics
-        const analyticsResponse = await fetch('/api/v1/analytics', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'x-client-id': clientId
-          }
+        // Fetch widget analytics
+        const analyticsRes = await analyticsAPI.getWidgetAnalytics(selectedWidget.widgetId);
+        const analytics = analyticsRes.data;
+        setStats({
+          documentsUploaded: analytics.summary?.documentsUploaded || 0,
+          totalChats: analytics.summary?.totalQueries || 0,
+          averageResponseTime: analytics.summary?.avgResponseTime ? `${analytics.summary.avgResponseTime} ms` : '< 1s',
+          totalQueries: analytics.summary?.totalQueries || 0,
+          successRate: analytics.summary?.successRate || 0,
+          errorQueries: analytics.summary?.errorQueries || 0,
+          noDocumentsQueries: analytics.summary?.noDocumentsQueries || 0
         });
-        
-        if (analyticsResponse.ok) {
-          const data = await analyticsResponse.json();
-          setStats({
-            documentsUploaded: data.documentsUploaded || 0,
-            totalChats: data.totalChats || 0,
-            averageResponseTime: data.averageResponseTime || '< 1s',
-            totalQueries: data.totalQueries || 0
-          });
-        }
-
-        // Fetch plan info
-        const planResponse = await fetch('/api/v1/plans/current', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'x-client-id': clientId
-          }
-        });
-
-        if (planResponse.ok) {
-          const planData = await planResponse.json();
-          setPlanInfo(planData);
-        }
+        // Fetch widget query history
+        const historyRes = await analyticsAPI.getWidgetHistory(selectedWidget.widgetId, { page: historyPage, limit: 10 });
+        setHistory(historyRes.data.history || []);
+        setHistoryLimitDays(historyRes.data.limitDays);
+        setHistoryTotalPages(historyRes.data.totalPages || 1);
+        setPlanInfo(historyRes.data.plan);
+        setStartDate(historyRes.data.startDate);
+        setEndDate(historyRes.data.endDate);
       } catch (error) {
-        console.error('Error fetching data:', error);
+        setStats({ documentsUploaded: 0, totalChats: 0, averageResponseTime: '< 1s', totalQueries: 0, successRate: 0, errorQueries: 0, noDocumentsQueries: 0 });
+        setHistory([]);
+        setHistoryLimitDays(null);
+        setHistoryTotalPages(1);
+      } finally {
+        setLoading(false);
       }
     };
-
     fetchData();
-  }, [clientId]);
-
-  const analyticsCards = [
-    { name: 'Documents Uploaded', value: stats.documentsUploaded, icon: DocumentTextIcon },
-    { name: 'Total Chats', value: stats.totalChats, icon: ChatBubbleLeftIcon },
-    { name: 'Average Response Time', value: stats.averageResponseTime, icon: ClockIcon },
-    { name: 'Total Queries', value: stats.totalQueries, icon: ChatBubbleLeftIcon },
-  ];
+  }, [selectedWidget, historyPage]);
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -77,21 +75,21 @@ const Dashboard = () => {
 
   const getPlanName = () => {
     if (!planInfo) return 'No Plan';
-    return planInfo.name || planInfo.plan?.name || 'No Plan';
-  };
-
-  const getPlanDates = () => {
-    if (!planInfo) return { startDate: 'N/A', endDate: 'N/A' };
-    return {
-      startDate: formatDate(planInfo.startDate || planInfo.plan?.startDate),
-      endDate: formatDate(planInfo.endDate || planInfo.plan?.endDate)
-    };
+    return planInfo || planInfo.name || planInfo.plan?.name || 'No Plan';
   };
 
   return (
     <DashboardLayout>
       <div className="py-6">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 md:px-8">
+          {/* Loading Spinner */}
+          {loading && (
+            <div className="flex justify-center items-center mb-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-500"></div>
+              <span className="ml-2 text-gray-600 dark:text-gray-300">Loading...</span>
+            </div>
+          )}
+
           {/* Welcome and Profile Section */}
           <div className="bg-white dark:bg-gray-800 shadow sm:rounded-lg mb-8">
             <div className="px-4 py-5 sm:p-6">
@@ -128,41 +126,126 @@ const Dashboard = () => {
                 </div>
                 <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
                   <p className="text-sm text-gray-500 dark:text-gray-400">Start Date</p>
-                  <p className="text-lg font-medium text-gray-900 dark:text-white">{getPlanDates().startDate}</p>
+                  <p className="text-lg font-medium text-gray-900 dark:text-white">{formatDate(startDate)}</p>
                 </div>
                 <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
                   <p className="text-sm text-gray-500 dark:text-gray-400">Expiry Date</p>
-                  <p className="text-lg font-medium text-gray-900 dark:text-white">{getPlanDates().endDate}</p>
+                  <p className="text-lg font-medium text-gray-900 dark:text-white">{formatDate(endDate)}</p>
                 </div>
               </div>
             </div>
           </div>
 
+          {/* Widget selector note */}
+          {!selectedWidget && (
+            <div className="mb-4 text-yellow-700 bg-yellow-100 p-2 rounded">Please select a widget to view analytics and history.</div>
+          )}
           {/* Analytics Cards */}
-          <div className="mt-8">
-            <dl className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {analyticsCards.map((item) => (
-                <div
-                  key={item.name}
-                  className="relative overflow-hidden rounded-lg bg-white dark:bg-gray-800 px-4 pt-5 pb-12 shadow sm:px-6 sm:pt-6"
-                >
+          {selectedWidget && (
+            <div className="mt-8">
+              <dl className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="relative overflow-hidden rounded-lg bg-white dark:bg-gray-800 px-4 pt-5 pb-12 shadow sm:px-6 sm:pt-6">
                   <dt>
                     <div className="absolute rounded-md bg-primary-500 p-3">
-                      <item.icon className="h-6 w-6 text-white" aria-hidden="true" />
+                      <DocumentTextIcon className="h-6 w-6 text-white" aria-hidden="true" />
                     </div>
-                    <p className="ml-16 truncate text-sm font-medium text-gray-500 dark:text-gray-400">{item.name}</p>
+                    <p className="ml-16 truncate text-sm font-medium text-gray-500 dark:text-gray-400">Documents Uploaded</p>
                   </dt>
                   <dd className="ml-16 flex items-baseline pb-6 sm:pb-7">
-                    <p className="text-2xl font-semibold text-gray-900 dark:text-white">{item.value}</p>
+                    <p className="text-2xl font-semibold text-gray-900 dark:text-white">{stats.documentsUploaded}</p>
                   </dd>
                 </div>
-              ))}
-            </dl>
-          </div>
+                <div className="relative overflow-hidden rounded-lg bg-white dark:bg-gray-800 px-4 pt-5 pb-12 shadow sm:px-6 sm:pt-6">
+                  <dt>
+                    <div className="absolute rounded-md bg-primary-500 p-3">
+                      <ChatBubbleLeftIcon className="h-6 w-6 text-white" aria-hidden="true" />
+                    </div>
+                    <p className="ml-16 truncate text-sm font-medium text-gray-500 dark:text-gray-400">Total Chats</p>
+                  </dt>
+                  <dd className="ml-16 flex items-baseline pb-6 sm:pb-7">
+                    <p className="text-2xl font-semibold text-gray-900 dark:text-white">{stats.totalChats}</p>
+                  </dd>
+                </div>
+                <div className="relative overflow-hidden rounded-lg bg-white dark:bg-gray-800 px-4 pt-5 pb-12 shadow sm:px-6 sm:pt-6">
+                  <dt>
+                    <div className="absolute rounded-md bg-primary-500 p-3">
+                      <ClockIcon className="h-6 w-6 text-white" aria-hidden="true" />
+                    </div>
+                    <p className="ml-16 truncate text-sm font-medium text-gray-500 dark:text-gray-400">Avg. Response Time</p>
+                  </dt>
+                  <dd className="ml-16 flex items-baseline pb-6 sm:pb-7">
+                    <p className="text-2xl font-semibold text-gray-900 dark:text-white">{stats.averageResponseTime}</p>
+                  </dd>
+                </div>
+                <div className="relative overflow-hidden rounded-lg bg-white dark:bg-gray-800 px-4 pt-5 pb-12 shadow sm:px-6 sm:pt-6">
+                  <dt>
+                    <div className="absolute rounded-md bg-primary-500 p-3">
+                      <ChatBubbleLeftIcon className="h-6 w-6 text-white" aria-hidden="true" />
+                    </div>
+                    <p className="ml-16 truncate text-sm font-medium text-gray-500 dark:text-gray-400">Success Rate</p>
+                  </dt>
+                  <dd className="ml-16 flex items-baseline pb-6 sm:pb-7">
+                    <p className="text-2xl font-semibold text-gray-900 dark:text-white">{stats.successRate}%</p>
+                  </dd>
+                </div>
+              </dl>
+            </div>
+          )}
+          {/* Query History Table */}
+          {selectedWidget && (
+            <div className="mt-10">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Query History</h3>
+              {historyLimitDays && (
+                <div className="mb-2 text-sm text-yellow-700 bg-yellow-100 p-2 rounded">Only the last {historyLimitDays} days of history are shown on your current plan.</div>
+              )}
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead>
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Query</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Response</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Time</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {history.map((item) => (
+                      <tr key={item.id}>
+                        <td className="px-4 py-2 max-w-xs truncate" title={item.query}>{item.query}</td>
+                        <td className="px-4 py-2 max-w-xs truncate" title={item.response}>{item.response}</td>
+                        <td className="px-4 py-2">{item.status}</td>
+                        <td className="px-4 py-2">{item.responseTime} ms</td>
+                        <td className="px-4 py-2">{new Date(item.timestamp).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {/* Pagination */}
+              <div className="mt-4 flex justify-end space-x-2">
+                <button
+                  onClick={() => setHistoryPage((p) => Math.max(1, p - 1))}
+                  disabled={historyPage === 1 || loading}
+                  className="px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50"
+                >
+                  Prev
+                </button>
+                <span className="px-2">Page {historyPage} of {historyTotalPages}</span>
+                <button
+                  onClick={() => setHistoryPage((p) => Math.min(historyTotalPages, p + 1))}
+                  disabled={historyPage === historyTotalPages || loading}
+                  className="px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </DashboardLayout>
   );
 };
 
-export default Dashboard; 
+export default Dashboard;
