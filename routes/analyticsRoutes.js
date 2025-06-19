@@ -22,4 +22,7 @@ router.get('/widgets/:widgetId', getWidgetAnalytics);
 // Get widget query history (plan-based limits)
 router.get('/widgets/:widgetId/history', require('../controllers/analyticsController').getWidgetQueryHistory);
 
+// Analytics overview for dashboard
+router.get('/overview', require('../controllers/analyticsController').getAnalyticsOverview);
+
 module.exports = router; 

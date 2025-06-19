@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import DashboardLayout from '../components/layout/DashboardLayout';
-import { DocumentTextIcon, ChatBubbleLeftIcon, ClockIcon, UserCircleIcon } from '@heroicons/react/24/outline';
+import { ChatBubbleLeftIcon, ClockIcon, UserCircleIcon } from '@heroicons/react/24/outline';
 import { Link } from 'react-router-dom';
 import { analyticsAPI } from '../services/api';
+import DashboardLayout from '../components/layout/DashboardLayout';
 
 const Dashboard = () => {
   const { user, clientId, selectedWidget } = useAuth();
@@ -23,7 +23,7 @@ const Dashboard = () => {
   const [historyLimitDays, setHistoryLimitDays] = useState(null);
   const [historyPage, setHistoryPage] = useState(1);
   const [historyTotalPages, setHistoryTotalPages] = useState(1);
-  const [loading, setLoading] = useState(false); // Fixed typo: loadng -> loading
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -82,14 +82,6 @@ const Dashboard = () => {
     <DashboardLayout>
       <div className="py-6">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 md:px-8">
-          {/* Loading Spinner */}
-          {loading && (
-            <div className="flex justify-center items-center mb-4">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-500"></div>
-              <span className="ml-2 text-gray-600 dark:text-gray-300">Loading...</span>
-            </div>
-          )}
-
           {/* Welcome and Profile Section */}
           <div className="bg-white dark:bg-gray-800 shadow sm:rounded-lg mb-8">
             <div className="px-4 py-5 sm:p-6">
@@ -143,18 +135,7 @@ const Dashboard = () => {
           {/* Analytics Cards */}
           {selectedWidget && (
             <div className="mt-8">
-              <dl className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="relative overflow-hidden rounded-lg bg-white dark:bg-gray-800 px-4 pt-5 pb-12 shadow sm:px-6 sm:pt-6">
-                  <dt>
-                    <div className="absolute rounded-md bg-primary-500 p-3">
-                      <DocumentTextIcon className="h-6 w-6 text-white" aria-hidden="true" />
-                    </div>
-                    <p className="ml-16 truncate text-sm font-medium text-gray-500 dark:text-gray-400">Documents Uploaded</p>
-                  </dt>
-                  <dd className="ml-16 flex items-baseline pb-6 sm:pb-7">
-                    <p className="text-2xl font-semibold text-gray-900 dark:text-white">{stats.documentsUploaded}</p>
-                  </dd>
-                </div>
+              <dl className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 <div className="relative overflow-hidden rounded-lg bg-white dark:bg-gray-800 px-4 pt-5 pb-12 shadow sm:px-6 sm:pt-6">
                   <dt>
                     <div className="absolute rounded-md bg-primary-500 p-3">

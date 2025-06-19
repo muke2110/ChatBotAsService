@@ -73,8 +73,48 @@ const getBedrockModelId = (modelName) => {
   return modelMap[modelName] || 'amazon.titan-embed-text-v2:0'; // Default fallback
 };
 
+/**
+ * Get the current query period (start and end date) for a user plan
+ * @param {Date} planStartDate - The plan's start date
+ * @param {string} billingCycle - 'monthly' or 'yearly'
+ * @returns {{periodStart: Date, periodEnd: Date}}
+ */
+const getCurrentQueryPeriod = (planStartDate, billingCycle) => {
+  const now = new Date();
+  const start = new Date(planStartDate);
+  let periodStart, periodEnd;
+  if (billingCycle === 'monthly') {
+    // Reset every month on the same day as planStartDate
+    periodStart = new Date(start);
+    periodStart.setFullYear(now.getFullYear());
+    periodStart.setMonth(now.getMonth());
+    if (now < periodStart) {
+      // If today is before this month's reset, use last month
+      periodStart.setMonth(periodStart.getMonth() - 1);
+    }
+    periodEnd = new Date(periodStart);
+    periodEnd.setMonth(periodEnd.getMonth() + 1);
+  } else if (billingCycle === 'yearly') {
+    // Reset every month, but period is from planStartDate day each month
+    periodStart = new Date(start);
+    periodStart.setFullYear(now.getFullYear());
+    periodStart.setMonth(now.getMonth());
+    if (now < periodStart) {
+      periodStart.setMonth(periodStart.getMonth() - 1);
+    }
+    periodEnd = new Date(periodStart);
+    periodEnd.setMonth(periodEnd.getMonth() + 1);
+  } else {
+    // Default: calendar month
+    periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  }
+  return { periodStart, periodEnd };
+};
+
 module.exports = {
   getUserPlan,
   getModelConfig,
-  getBedrockModelId
+  getBedrockModelId,
+  getCurrentQueryPeriod
 }; 

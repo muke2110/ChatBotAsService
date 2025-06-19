@@ -111,6 +111,8 @@ export const analyticsAPI = {
     const search = new URLSearchParams(params).toString();
     return api.get(`/analytics/widgets/${widgetId}/history${search ? `?${search}` : ''}`);
   },
+  getOverview: () => api.get('/analytics/overview'),
+  getAllWidgetsAnalytics: () => api.get('/analytics/widgets'),
 };
 
 export default api; 

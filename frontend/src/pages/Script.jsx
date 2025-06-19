@@ -194,11 +194,11 @@ const Script = () => {
               </div>
 
               {scriptConfig && (
-                <div className="mt-8">
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-                    Current Configuration
-                  </h3>
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="mt-8">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                  Current Configuration
+                </h3>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                         Widget ID
@@ -207,55 +207,55 @@ const Script = () => {
                         {scriptConfig.config.widgetId || 'Not specified'}
                       </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Position
-                      </label>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Position
+                    </label>
                       <div className="mt-1 block w-full rounded-md border-gray-300 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 px-3 py-2 text-sm">
                         {scriptConfig.config.position}
-                      </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Primary Color
-                      </label>
-                      <div className="mt-1 flex items-center space-x-2">
-                        <div 
-                          className="w-8 h-8 rounded border border-gray-300"
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Primary Color
+                    </label>
+                    <div className="mt-1 flex items-center space-x-2">
+                      <div 
+                        className="w-8 h-8 rounded border border-gray-300"
                           style={{ backgroundColor: scriptConfig.config.theme.primaryColor }}
-                        />
-                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                      />
+                      <span className="text-sm text-gray-500 dark:text-gray-400">
                           {scriptConfig.config.theme.primaryColor}
-                        </span>
-                      </div>
+                      </span>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Text Color
-                      </label>
-                      <div className="mt-1 flex items-center space-x-2">
-                        <div 
-                          className="w-8 h-8 rounded border border-gray-300"
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Text Color
+                    </label>
+                    <div className="mt-1 flex items-center space-x-2">
+                      <div 
+                        className="w-8 h-8 rounded border border-gray-300"
                           style={{ backgroundColor: scriptConfig.config.theme.textColor }}
-                        />
-                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                      />
+                      <span className="text-sm text-gray-500 dark:text-gray-400">
                           {scriptConfig.config.theme.textColor}
-                        </span>
-                      </div>
+                      </span>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Background Color
-                      </label>
-                      <div className="mt-1 flex items-center space-x-2">
-                        <div 
-                          className="w-8 h-8 rounded border border-gray-300"
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Background Color
+                    </label>
+                    <div className="mt-1 flex items-center space-x-2">
+                      <div 
+                        className="w-8 h-8 rounded border border-gray-300"
                           style={{ backgroundColor: scriptConfig.config.theme.backgroundColor }}
-                        />
-                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                      />
+                      <span className="text-sm text-gray-500 dark:text-gray-400">
                           {scriptConfig.config.theme.backgroundColor}
-                        </span>
-                      </div>
+                      </span>
+                    </div>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -264,17 +264,17 @@ const Script = () => {
                       <div className="mt-1 block w-full rounded-md border-gray-300 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 px-3 py-2 text-sm">
                         {scriptConfig.config.botName}
                       </div>
-                    </div>
-                  </div>
-                  <div className="mt-4">
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      To modify these settings, please visit the{' '}
-                      <a href="/widgets" className="text-primary-600 hover:text-primary-500">
-                        Widgets page
-                      </a>
-                    </p>
                   </div>
                 </div>
+                <div className="mt-4">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    To modify these settings, please visit the{' '}
+                      <a href="/widgets" className="text-primary-600 hover:text-primary-500">
+                        Widgets page
+                    </a>
+                  </p>
+                </div>
+              </div>
               )}
             </div>
           </div>

@@ -13,11 +13,13 @@ import {
   Bars3Icon,
   XMarkIcon,
   ChatBubbleLeftRightIcon,
-  ChevronDownIcon
+  ChevronDownIcon,
+  ChartBarIcon
 } from '@heroicons/react/24/outline';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
+  { name: 'Analytics', href: '/analytics', icon: ChartBarIcon },
   { name: 'Widgets', href: '/widgets', icon: ChatBubbleLeftRightIcon },
   { name: 'Upload Docs', href: '/upload', icon: DocumentTextIcon },
   { name: 'Script', href: '/script', icon: CodeBracketIcon },
@@ -194,7 +196,7 @@ const DashboardLayout = ({ children }) => {
               )}
             </div>
             
-            <div className="flex items-center">
+              <div className="flex items-center">
               <div className="flex items-center space-x-4">
                 <div className="text-sm text-gray-500 dark:text-gray-400">
                   Welcome, {user?.name || user?.email}
@@ -207,9 +209,9 @@ const DashboardLayout = ({ children }) => {
         {/* Main content area */}
         <main className="flex-1">
           <div className="py-6">
-            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-              <EmailVerificationWarning />
-              {children}
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <EmailVerificationWarning />
+            {children}
             </div>
           </div>
         </main>

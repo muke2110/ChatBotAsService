@@ -1,6 +1,7 @@
 const { Client, UserPlan, Query, Plan, Document, QueryAnalytics, ChatbotWidget } = require('../models');
 const { Op } = require('sequelize');
 const logger = require('../utils/logger');
+const { getCurrentQueryPeriod } = require('../utils/planUtils');
 
 exports.getDashboardAnalytics = async (req, res) => {
   try {
@@ -385,5 +386,67 @@ exports.getWidgetQueryHistory = async (req, res) => {
   } catch (error) {
     logger.error('Error getting widget query history:', error);
     res.status(500).json({ message: 'Failed to get query history' });
+  }
+};
+
+// Analytics overview for dashboard
+exports.getAnalyticsOverview = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    // Get user plan
+    const userPlan = await UserPlan.findOne({
+      where: { userId, status: 'active' },
+      include: [Plan],
+      order: [['createdAt', 'DESC']]
+    });
+    if (!userPlan || !userPlan.Plan) {
+      return res.status(404).json({ message: 'No active plan found' });
+    }
+    const plan = userPlan.Plan;
+    const { periodStart, periodEnd } = getCurrentQueryPeriod(userPlan.startDate, plan.billingCycle);
+    // Get all widgets for the user
+    const widgets = await ChatbotWidget.findAll({
+      where: { userId, isActive: true }
+    });
+    const widgetIds = widgets.map(w => w.id);
+    // Get query counts for all widgets in the current period
+    const analytics = await QueryAnalytics.findAll({
+      where: {
+        widgetId: { [Op.in]: widgetIds },
+        timestamp: { [Op.gte]: periodStart, [Op.lt]: periodEnd }
+      }
+    });
+    // Per-widget breakdown
+    const widgetQueryCounts = widgets.map(widget => {
+      const count = analytics.filter(a => a.widgetId === widget.id).length;
+      return {
+        widgetId: widget.widgetId,
+        name: widget.name,
+        queries: count
+      };
+    });
+    // Total queries used
+    const totalQueries = analytics.length;
+    const maxQueries = plan.maxQueriesPerMonth;
+    const remainingQueries = Math.max(0, maxQueries - totalQueries);
+    // Next reset date
+    const resetDate = periodEnd;
+    res.json({
+      plan: {
+        name: plan.name,
+        billingCycle: plan.billingCycle,
+        maxQueriesPerMonth: plan.maxQueriesPerMonth,
+        startDate: userPlan.startDate,
+        endDate: userPlan.endDate
+      },
+      totalQueries,
+      maxQueries,
+      remainingQueries,
+      resetDate,
+      widgetQueryCounts
+    });
+  } catch (error) {
+    logger.error('Error getting analytics overview:', error);
+    res.status(500).json({ message: 'Failed to get analytics overview' });
   }
 }; 

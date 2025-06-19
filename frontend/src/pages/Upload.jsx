@@ -113,7 +113,7 @@ const Upload = () => {
 
       if (response.ok) {
         toast.success('Document deleted successfully!');
-        setCurrentDocument(null);
+      setCurrentDocument(null);
       } else {
         const error = await response.json();
         toast.error(error.message || 'Delete failed');
@@ -148,7 +148,7 @@ const Upload = () => {
         </div>
       </DashboardLayout>
     );
-  }
+    }
 
   return (
     <DashboardLayout>
@@ -174,28 +174,28 @@ const Upload = () => {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Select PDF File
                   </label>
-                  <input
-                    type="file"
-                    accept=".pdf"
-                    onChange={handleFileChange}
-                    className="block w-full text-sm text-gray-500 dark:text-gray-400
-                      file:mr-4 file:py-2 file:px-4
+                      <input
+                        type="file"
+                        accept=".pdf"
+                        onChange={handleFileChange}
+                        className="block w-full text-sm text-gray-500 dark:text-gray-400
+                file:mr-4 file:py-2 file:px-4
                       file:rounded-full file:border-0
-                      file:text-sm file:font-semibold
-                      file:bg-primary-50 file:text-primary-700
-                      hover:file:bg-primary-100
+                file:text-sm file:font-semibold
+                file:bg-primary-50 file:text-primary-700
+                hover:file:bg-primary-100
                       dark:file:bg-primary-900 dark:file:text-primary-200"
-                  />
+                      />
                 </div>
-                <button
-                  type="submit"
+                    <button
+                      type="submit"
                   disabled={!file || uploading}
                   className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {uploading ? 'Uploading...' : 'Upload Document'}
                 </button>
               </form>
-            </div>
+                        </div>
           )}
 
           {/* No Document Message */}
@@ -206,7 +206,7 @@ const Upload = () => {
                   <p className="text-sm text-blue-700 dark:text-blue-200">
                     No documents uploaded for this widget yet. Upload a PDF document to get started.
                   </p>
-                </div>
+                  </div>
               </div>
             </div>
           )}
@@ -223,7 +223,7 @@ const Upload = () => {
                   <div>
                     <h3 className="text-sm font-medium text-gray-900 dark:text-white">
                       {currentDocument.name}
-                    </h3>
+              </h3>
                     <p className="text-sm text-gray-500 dark:text-gray-400">
                       Size: {(currentDocument.size / 1024 / 1024).toFixed(2)} MB
                     </p>
@@ -231,45 +231,45 @@ const Upload = () => {
                       Uploaded: {new Date(currentDocument.createdAt).toLocaleDateString()}
                     </p>
                   </div>
-                </div>
-                <button
+                    </div>
+                    <button
                   onClick={() => setShowDeleteConfirm(true)}
                   className="inline-flex items-center px-3 py-1.5 border border-red-300 dark:border-red-600 shadow-sm text-xs font-medium rounded text-red-700 dark:text-red-300 bg-white dark:bg-gray-700 hover:bg-red-50 dark:hover:bg-red-900/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                >
+                    >
                   <TrashIcon className="h-3 w-3 mr-1" />
                   Delete
-                </button>
+                    </button>
               </div>
             </div>
           )}
 
-          {/* Delete Confirmation Modal */}
-          {showDeleteConfirm && (
-            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center">
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-sm w-full mx-4">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-                  Delete Document
-                </h3>
-                <p className="text-gray-500 dark:text-gray-400 mb-6">
-                  Are you sure you want to delete this document? This action cannot be undone.
-                </p>
-                <div className="flex justify-end space-x-4">
-                  <button
-                    onClick={() => setShowDeleteConfirm(false)}
-                    className="btn-secondary"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={confirmDelete}
-                    className="btn-danger"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-sm w-full mx-4">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+              Delete Document
+            </h3>
+            <p className="text-gray-500 dark:text-gray-400 mb-6">
+              Are you sure you want to delete this document? This action cannot be undone.
+            </p>
+            <div className="flex justify-end space-x-4">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="btn-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="btn-danger"
+              >
+                Delete
+              </button>
             </div>
-          )}
+          </div>
+        </div>
+      )}
         </div>
       </div>
     </DashboardLayout>

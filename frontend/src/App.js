@@ -21,6 +21,7 @@ import VerifyEmail from './pages/VerifyEmail';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Widgets from './pages/Widgets';
+import Analytics from './pages/Analytics';
 
 function App() {
   return (
@@ -123,6 +124,15 @@ function App() {
             element={
               <PrivateRoute requirePlan={true}>
                 <Widgets />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/analytics"
+            element={
+              <PrivateRoute requirePlan={true}>
+                <Analytics />
               </PrivateRoute>
             }
           />
