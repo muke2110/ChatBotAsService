@@ -2,7 +2,8 @@
 import React, { useEffect, useState } from 'react';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { analyticsAPI } from '../services/api';
-import { ChartBarIcon } from '@heroicons/react/24/outline';
+import { ChartBarIcon, DocumentArrowDownIcon } from '@heroicons/react/24/outline';
+import toast from 'react-hot-toast';
 
 const Analytics = () => {
   const [overview, setOverview] = useState(null);
@@ -49,11 +50,38 @@ const Analytics = () => {
     <DashboardLayout>
       <div className="py-6">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 md:px-8">
-          <h1 className="text-2xl font-bold mb-6 flex items-center">
-            <ChartBarIcon className="h-7 w-7 mr-2 text-primary-600" /> Analytics
-          </h1>
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-2xl font-bold flex items-center">
+              <ChartBarIcon className="h-7 w-7 mr-2 text-primary-600" /> Analytics
+            </h1>
+            <div>
+              <button
+                onClick={async () => {
+                  toast.loading('Preparing your export...');
+                  try {
+                    await analyticsAPI.exportAnalytics('overview');
+                    toast.dismiss();
+                    toast.success('Export downloaded! An email with the file is on its way.');
+                  } catch (error) {
+                    toast.dismiss();
+                    toast.error('Could not complete the export.');
+                  }
+                }}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700"
+              >
+                <DocumentArrowDownIcon className="h-4 w-4 mr-2" />
+                Export Overview
+              </button>
+            </div>
+          </div>
           {loading ? (
             <div className="text-gray-500 dark:text-gray-400">Loading analytics...</div>
+          ) : !overview || !overview.plan ? (
+            <div className="flex flex-col items-center justify-center py-24">
+              <div className="text-2xl font-bold text-yellow-700 mb-2">No active plan detected</div>
+              <div className="text-gray-600 dark:text-gray-300 mb-4">Please subscribe to a plan to view analytics and usage statistics.</div>
+              <a href="/plans" className="btn-primary">View Plans</a>
+            </div>
           ) : (
             <>
               {/* Overview Cards */}
@@ -157,18 +185,18 @@ const Analytics = () => {
                   <div className="mb-8">
                     <h2 className="text-lg font-semibold mb-2">Daily Queries (All Widgets)</h2>
                     <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                      <div className="flex items-end space-x-2 h-40">
-                        {getDailyQueryData().map(([date, count]) => (
-                          <div key={date} className="flex flex-col items-center justify-end" style={{ width: 24 }}>
-                            <div
-                              className="bg-primary-500 rounded-t"
-                              style={{ height: `${Math.max(8, count * 8)}px`, minHeight: 8 }}
-                              title={`${count} queries`}
-                            ></div>
-                            <span className="text-xs mt-1 text-gray-500 dark:text-gray-400" style={{ writingMode: 'vertical-lr', transform: 'rotate(180deg)' }}>{date.slice(5)}</span>
-                          </div>
-                        ))}
-                      </div>
+                      <svg width="100%" height="160" className="overflow-visible">
+                        {getDailyQueryData().map(([date, count], index, arr) => {
+                          const x = (index / (arr.length -1)) * 100;
+                          const y = 150 - (count / Math.max(...arr.map(d => d[1]))) * 140;
+                          return (
+                            <g key={date}>
+                              <rect x={`${x}%`} y={y} width="16" height={150-y} rx="2" className="fill-current text-primary-500" />
+                              <text x={`${x}%`} y="160" dx="8" textAnchor="middle" className="text-xs fill-current text-gray-500 dark:text-gray-400">{date.slice(5)}</text>
+                            </g>
+                          )
+                        })}
+                      </svg>
                     </div>
                   </div>
                 </>

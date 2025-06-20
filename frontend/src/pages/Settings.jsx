@@ -3,9 +3,10 @@ import { useAuth } from '../contexts/AuthContext';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import toast from 'react-hot-toast';
 import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { widgetAPI } from '../services/api';
 
 const Settings = () => {
-  const { token, clientId, setClientId } = useAuth();
+  const { token, clientId, setClientId, widgets, selectedWidget, updateSelectedWidget } = useAuth();
   const [loading, setLoading] = useState(false);
   const [showWarning, setShowWarning] = useState(false);
   const [settings, setSettings] = useState({
@@ -21,25 +22,18 @@ const Settings = () => {
 
   useEffect(() => {
     const fetchSettings = async () => {
+      if (!selectedWidget) return;
       try {
-        const response = await fetch('/api/v1/settings', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'x-client-id': clientId
-          }
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setSettings(data);
+        const response = await widgetAPI.getWidgetSettings(selectedWidget.widgetId);
+        if (response.data.widget && response.data.widget.settings) {
+          setSettings(response.data.widget.settings);
         }
       } catch (error) {
-        console.error('Error fetching settings:', error);
+        console.error('Error fetching widget settings:', error);
       }
     };
-
     fetchSettings();
-  }, [token, clientId]);
+  }, [selectedWidget]);
 
   const handleSettingsChange = (key, value) => {
     if (key.includes('.')) {
@@ -60,21 +54,11 @@ const Settings = () => {
   };
 
   const saveSettings = async () => {
+    if (!selectedWidget) return;
     setLoading(true);
     try {
-      const response = await fetch('/api/v1/settings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'x-client-id': clientId
-        },
-        body: JSON.stringify(settings)
-      });
-
-      if (!response.ok) throw new Error('Failed to save settings');
-
-      toast.success('Settings saved successfully!');
+      await widgetAPI.updateWidgetSettings(selectedWidget.widgetId, settings);
+      toast.success('Settings saved for this widget!');
     } catch (error) {
       toast.error('Failed to save settings. Please try again.');
     } finally {
@@ -116,6 +100,24 @@ const Settings = () => {
     <DashboardLayout>
       <div className="py-6">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          {/* Widget Selector */}
+          {widgets.length > 1 && (
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Select Widget</label>
+              <select
+                value={selectedWidget?.widgetId || ''}
+                onChange={e => {
+                  const widget = widgets.find(w => w.widgetId === e.target.value);
+                  updateSelectedWidget(widget);
+                }}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600"
+              >
+                {widgets.map(widget => (
+                  <option key={widget.widgetId} value={widget.widgetId}>{widget.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="space-y-6">
             {/* Client ID Section */}
             <div className="bg-white dark:bg-gray-800 shadow sm:rounded-lg">

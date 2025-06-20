@@ -103,6 +103,8 @@ export const widgetAPI = {
   deleteWidget: (widgetId) => api.delete(`/widgets/${widgetId}`),
   getWidget: (widgetId) => api.get(`/widgets/${widgetId}`),
   reorderWidgets: (data) => api.post('/widgets/reorder', data),
+  getWidgetSettings: (widgetId) => api.get(`/widgets/${widgetId}`),
+  updateWidgetSettings: (widgetId, settings) => api.patch(`/widgets/${widgetId}/settings`, { settings }),
 };
 
 export const analyticsAPI = {
@@ -113,6 +115,40 @@ export const analyticsAPI = {
   },
   getOverview: () => api.get('/analytics/overview'),
   getAllWidgetsAnalytics: () => api.get('/analytics/widgets'),
+  exportAnalytics: async (reportType, widgetId) => {
+    const params = new URLSearchParams({ reportType });
+    if (widgetId) {
+      params.append('widgetId', widgetId);
+    }
+    const response = await api.get(`/analytics/export?${params.toString()}`, {
+      responseType: 'blob', // Important for file downloads
+    });
+
+    // Create a URL for the blob
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+
+    // Get filename from content-disposition header
+    const contentDisposition = response.headers['content-disposition'];
+    let fileName = 'export.csv';
+    if (contentDisposition) {
+      const fileNameMatch = contentDisposition.match(/filename="(.+)"/);
+      if (fileNameMatch.length === 2)
+        fileName = fileNameMatch[1];
+    }
+    
+    link.setAttribute('download', fileName);
+    
+    // Append to html link element page
+    document.body.appendChild(link);
+    
+    // Start download
+    link.click();
+    
+    // Clean up and remove the link
+    link.parentNode.removeChild(link);
+  },
 };
 
 export default api; 

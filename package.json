@@ -29,6 +29,7 @@
     "faiss-node": "^0.5.1",
     "google-auth-library": "^9.15.1",
     "helmet": "^5.0.0",
+    "json2csv": "^6.0.0-alpha.2",
     "jsonwebtoken": "^9.0.0",
     "mammoth": "^1.9.1",
     "morgan": "^1.10.0",

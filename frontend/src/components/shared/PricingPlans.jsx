@@ -102,9 +102,9 @@ const PricingPlans = ({ isAuthenticated = false }) => {
 
   const calculatePrice = (basePrice) => {
     if (billingCycle === 'yearly') {
-      // 10% discount for yearly billing
+      // 20% discount for yearly billing (match backend)
       const yearlyPrice = basePrice * 12;
-      const discount = yearlyPrice * 0.1;
+      const discount = yearlyPrice * 0.2;
       return Math.round(yearlyPrice - discount);
     }
     return basePrice;
@@ -206,7 +206,7 @@ const PricingPlans = ({ isAuthenticated = false }) => {
                 </p>
                 {billingCycle === 'yearly' && (
                   <p className="mt-2 text-sm text-green-600">
-                    10% discount applied
+                    20% discount applied
                   </p>
                 )}
 

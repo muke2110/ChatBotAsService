@@ -77,6 +77,18 @@ exports.register = async (req, res, next) => {
       verificationLink: `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`
     });
 
+    // Send welcome email
+    await sendEmail(user.email, 'welcome', {
+      userName: user.fullName,
+      pricingUrl: `${process.env.FRONTEND_URL}/plans`,
+      features: [
+        { name: 'Document-based Training', value: 'Upload your documents and train the chatbot with your specific knowledge base.' },
+        { name: 'AI-Powered Responses', value: 'Advanced AI models ensure accurate and contextual responses.' },
+        { name: 'Secure & Private', value: 'Your data is encrypted and securely stored.' },
+        { name: 'Real-time Chat', value: 'Instant responses and seamless conversation flow.' }
+      ]
+    });
+
     // Generate token
     const token = generateToken(user);
     

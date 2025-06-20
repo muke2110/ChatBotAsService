@@ -25,4 +25,7 @@ router.get('/widgets/:widgetId/history', require('../controllers/analyticsContro
 // Analytics overview for dashboard
 router.get('/overview', require('../controllers/analyticsController').getAnalyticsOverview);
 
+// Export analytics data
+router.get('/export', require('../controllers/analyticsController').exportAnalytics);
+
 module.exports = router; 

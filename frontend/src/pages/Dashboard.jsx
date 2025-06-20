@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { ChatBubbleLeftIcon, ClockIcon, UserCircleIcon } from '@heroicons/react/24/outline';
+import { ChatBubbleLeftIcon, ClockIcon, UserCircleIcon, DocumentArrowDownIcon } from '@heroicons/react/24/outline';
 import { Link } from 'react-router-dom';
 import { analyticsAPI } from '../services/api';
 import DashboardLayout from '../components/layout/DashboardLayout';
+import toast from 'react-hot-toast';
 
 const Dashboard = () => {
   const { user, clientId, selectedWidget } = useAuth();
@@ -175,7 +176,30 @@ const Dashboard = () => {
           {/* Query History Table */}
           {selectedWidget && (
             <div className="mt-10">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Query History</h3>
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">Query History</h3>
+                <button
+                  onClick={async () => {
+                    if (!selectedWidget) {
+                      toast.error("Please select a widget first.");
+                      return;
+                    }
+                    toast.loading('Preparing your history export...');
+                    try {
+                      await analyticsAPI.exportAnalytics('history', selectedWidget.widgetId);
+                      toast.dismiss();
+                      toast.success('History export downloaded! An email with the file is on its way.');
+                    } catch (error) {
+                      toast.dismiss();
+                      toast.error('Could not complete the export.');
+                    }
+                  }}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700"
+                >
+                  <DocumentArrowDownIcon className="h-4 w-4 mr-2" />
+                  Export History
+                </button>
+              </div>
               {historyLimitDays && (
                 <div className="mb-2 text-sm text-yellow-700 bg-yellow-100 p-2 rounded">Only the last {historyLimitDays} days of history are shown on your current plan.</div>
               )}

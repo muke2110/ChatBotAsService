@@ -3,6 +3,7 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const User = require('../models/user.model');
 const Client = require('../models/client.model');
 const { v4: uuidv4 } = require('uuid');
+const { sendEmail } = require('../services/emailService');
 
 passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
@@ -51,6 +52,18 @@ passport.use(new GoogleStrategy({
             emailVerified: true,
             role: 'user'
           });
+
+          // Send welcome email
+          await sendEmail(user.email, 'welcome', {
+            userName: user.fullName,
+            pricingUrl: `${process.env.FRONTEND_URL}/plans`,
+            features: [
+              { name: 'Document-based Training', value: 'Upload your documents and train the chatbot with your specific knowledge base.' },
+              { name: 'AI-Powered Responses', value: 'Advanced AI models ensure accurate and contextual responses.' },
+              { name: 'Secure & Private', value: 'Your data is encrypted and securely stored.' },
+              { name: 'Real-time Chat', value: 'Instant responses and seamless conversation flow.' }
+            ]
+          });
         }
 
         // Create client if it doesn't exist
@@ -75,7 +88,7 @@ passport.use(new GoogleStrategy({
       }
 
       // Log the user object for debugging
-      console.log('User object with client:', user.toJSON());
+      // console.log('User object with client:', user.toJSON());
       
       return done(null, user);
     } catch (error) {

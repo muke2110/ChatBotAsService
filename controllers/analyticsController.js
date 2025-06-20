@@ -2,6 +2,8 @@ const { Client, UserPlan, Query, Plan, Document, QueryAnalytics, ChatbotWidget }
 const { Op } = require('sequelize');
 const logger = require('../utils/logger');
 const { getCurrentQueryPeriod } = require('../utils/planUtils');
+const { Parser } = require('json2csv');
+const { sendEmailWithAttachment } = require('../services/emailService');
 
 exports.getDashboardAnalytics = async (req, res) => {
   try {
@@ -448,5 +450,97 @@ exports.getAnalyticsOverview = async (req, res) => {
   } catch (error) {
     logger.error('Error getting analytics overview:', error);
     res.status(500).json({ message: 'Failed to get analytics overview' });
+  }
+};
+
+// Export analytics data as CSV
+exports.exportAnalytics = async (req, res) => {
+  try {
+    const { id: userId, email: userEmail, fullName } = req.user; // Get user email from authenticated request
+    const { reportType, widgetId } = req.query; // e.g., 'overview', 'history'
+
+    const userPlan = await UserPlan.findOne({
+      where: { userId, status: 'active' },
+      include: [Plan],
+    });
+
+    if (!userPlan || !userPlan.Plan) {
+      return res.status(404).json({ message: 'No active plan found' });
+    }
+
+    let csv;
+    let fileName = `analytics_export_${new Date().toISOString().split('T')[0]}.csv`;
+
+    if (reportType === 'overview') {
+      const { periodStart, periodEnd } = getCurrentQueryPeriod(userPlan.startDate, userPlan.Plan.billingCycle);
+      const widgets = await ChatbotWidget.findAll({ where: { userId, isActive: true } });
+      const widgetIds = widgets.map(w => w.id);
+      const analytics = await QueryAnalytics.findAll({
+        where: {
+          widgetId: { [Op.in]: widgetIds },
+          timestamp: { [Op.gte]: periodStart, [Op.lt]: periodEnd }
+        }
+      });
+      
+      const totalQueries = analytics.length;
+      const maxQueries = userPlan.Plan.maxQueriesPerMonth;
+      const remainingQueries = Math.max(0, maxQueries - totalQueries);
+
+      const overviewData = [{
+        plan: userPlan.Plan.name,
+        billingCycle: userPlan.Plan.billingCycle,
+        periodStart: periodStart.toISOString(),
+        periodEnd: periodEnd.toISOString(),
+        totalQueries,
+        maxQueries,
+        remainingQueries,
+      }];
+      
+      const json2csvParser = new Parser();
+      csv = json2csvParser.parse(overviewData);
+      fileName = `overview_${fileName}`;
+
+    } else if (reportType === 'history' && widgetId) {
+      const widget = await ChatbotWidget.findOne({ where: { widgetId, userId } });
+      if (!widget) return res.status(404).json({ message: 'Widget not found' });
+
+      const history = await QueryAnalytics.findAll({
+        where: { widgetId: widget.id },
+        order: [['timestamp', 'DESC']],
+        raw: true,
+      });
+
+      if (history.length === 0) {
+        return res.status(404).json({ message: 'No history to export for this widget.' });
+      }
+      
+      const json2csvParser = new Parser({ fields: ['timestamp', 'query', 'response', 'status', 'responseTime'] });
+      csv = json2csvParser.parse(history);
+      fileName = `history_${widget.name.replace(/ /g, '_')}_${fileName}`;
+    
+    } else {
+      return res.status(400).json({ message: 'Invalid report type or missing widgetId for history.' });
+    }
+
+    // Send email with attachment
+    try {
+      await sendEmailWithAttachment(
+        userEmail,
+        `Your Analytics Export: ${reportType}`,
+        `<p>Hi ${fullName || 'there'},</p><p>Attached is the analytics export you requested.</p>`,
+        [{ filename: fileName, content: csv, contentType: 'text/csv' }]
+      );
+    } catch (emailError) {
+      logger.error('Failed to send export email, but proceeding with download.', { error: emailError });
+      // Do not block download if email fails
+    }
+
+    res.header('Content-Type', 'text/csv');
+    res.attachment(fileName);
+    return res.send(csv);
+
+  } catch (error) {
+    logger.error('Error exporting analytics:', error);
+    res.status(500).json({ message: 'Failed to export analytics' });
   }
 }; 

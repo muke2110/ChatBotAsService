@@ -37,7 +37,7 @@ exports.handleQuery = async (req, res) => {
 
     // Generate query embedding using plan-specific model
     const queryEmbeddings = await embedService.generateEmbeddings([query], userId);
-    logger.info('Query embeddings generated', { queryEmbeddings });
+    // logger.info('Query embeddings generated', { queryEmbeddings });
     if (!queryEmbeddings || queryEmbeddings.length === 0) {
       throw new Error('Failed to generate query embedding');
     }

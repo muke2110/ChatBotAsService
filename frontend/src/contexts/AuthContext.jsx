@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { authAPI, plansAPI, widgetAPI } from '../services/api';
-import { toast } from 'react-hot-toast';
+// import { toast } from 'react-hot-toast';
 
 const AuthContext = createContext(null);
 
@@ -134,6 +134,7 @@ export const AuthProvider = ({ children }) => {
   }, [token, fetchUserData, fetchWidgets]);
 
   const login = async (email, password) => {
+    setLoading(true);
     try {
       const response = await authAPI.login({ email, password });
       const { token, clientId } = response.data;
@@ -149,14 +150,18 @@ export const AuthProvider = ({ children }) => {
       return { success: true };
     } catch (error) {
       console.error('Login error:', error);
+      clearAuth();
       return { 
         success: false, 
         error: error.response?.data?.message || 'Login failed' 
       };
+    } finally {
+      setLoading(false);
     }
   };
 
   const googleLogin = async (googleToken) => {
+    setLoading(true);
     try {
       const response = await authAPI.googleLogin(googleToken);
       const { token, clientId } = response.data;
@@ -176,16 +181,18 @@ export const AuthProvider = ({ children }) => {
       return { success: true };
     } catch (error) {
       console.error('Google login error:', error);
-      // Clear any partial auth state
       clearAuth();
       return { 
         success: false, 
         error: error.response?.data?.message || 'Google login failed' 
       };
+    } finally {
+      setLoading(false);
     }
   };
 
   const register = async (userData) => {
+    setLoading(true);
     try {
       const response = await authAPI.register(userData);
       const { token, clientId } = response.data;
@@ -198,10 +205,16 @@ export const AuthProvider = ({ children }) => {
       
       await fetchUserData();
       await fetchWidgets();
-      return true;
+      return { success: true };
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Registration failed');
-      return false;
+      console.error('Register error:', error);
+      clearAuth();
+      return { 
+        success: false, 
+        error: error.response?.data?.message || 'Registration failed' 
+      };
+    } finally {
+      setLoading(false);
     }
   };
 

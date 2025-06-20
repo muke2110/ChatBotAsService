@@ -1,8 +1,10 @@
 const { Payment, Plan, UserPlan, Client } = require('../models');
+const User = require('../models/user.model');
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
 const logger = require('../utils/logger');
 const { createWidgetsForUser } = require('../services/widgetService');
+const { sendEmail } = require('../services/emailService');
 
 // Check for required environment variables
 if (!process.env.RAZORPAY_KEY || !process.env.RAZORPAY_SECRET) {
@@ -190,6 +192,46 @@ const verifyPayment = async (req, res) => {
             planId: payment.planId,
             subscriptionId: userPlan.id
         });
+
+        // Send beautiful payment receipt email
+        try {
+            const user = await User.findByPk(req.user.id);
+            const plan = payment.Plan;
+            // Compose features as array of {name, value}
+            let features = [];
+            if (plan.features && typeof plan.features === 'object' && !Array.isArray(plan.features)) {
+                features = Object.entries(plan.features).map(([name, value]) => ({ name, value }));
+            }
+            // Add core plan fields as features
+            features.push(
+                { name: 'Max Document Tokens', value: plan.maxDocumentTokens },
+                { name: 'Max Queries Per Month', value: plan.maxQueriesPerMonth },
+                { name: 'Max Storage (MB)', value: plan.maxStorageMB },
+                { name: 'Max Chatbot Widgets', value: plan.maxChatbotWidgets },
+                { name: 'Supported File Types', value: Array.isArray(plan.supportedFileTypes) ? plan.supportedFileTypes.join(', ') : plan.supportedFileTypes },
+                { name: 'Support Level', value: plan.supportLevel },
+                { name: 'Analytics Level', value: plan.analyticsLevel },
+                { name: 'Custom Branding', value: plan.isCustomBranding ? 'Yes' : 'No' },
+                { name: 'Team Features', value: plan.isTeamFeatures ? 'Yes' : 'No' }
+            );
+            await sendEmail(
+                user.email,
+                'payment_receipt',
+                {
+                    userName: user.fullName || user.email,
+                    planName: plan.name,
+                    planDescription: plan.description,
+                    features,
+                    price: payment.amount, // This is the actual amount paid (after discount if any)
+                    billingCycle: payment.billingCycle,
+                    startDate: userPlan.startDate,
+                    endDate: userPlan.endDate,
+                    invoiceUrl: null // Add invoice URL if available
+                }
+            );
+        } catch (emailErr) {
+            logger.error('Failed to send payment receipt email', { error: emailErr });
+        }
 
         res.json({
             success: true,

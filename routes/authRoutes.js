@@ -55,14 +55,17 @@ router.get('/google/callback',
       }
 
       // Log the user object for debugging
-      console.log('User in callback:', req.user.toJSON());
+      // console.log('User in callback:', req.user.toJSON());
 
       // Generate token
       const token = req.user.generateAuthToken();
+
+      // console.log("user token id::::", token);
+      // console.log("user client id::::", req.user.dataValues.client.dataValues.clientId);
       
       // Get clientId
-      const clientId = req.user.Client ? req.user.Client.clientId : null;
-      
+      // const clientId = req.user.Client ? req.user.Client.clientId : null;
+      const clientId = req.user.dataValues.client.dataValues.clientId;
       // Log success
       console.log('Authentication successful, redirecting with token and clientId');
       
