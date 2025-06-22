@@ -5,6 +5,7 @@ const { authMiddleware } = require('../middleware/auth.middleware');
 const { clientIdMiddleware } = require('../middleware/clientId.middleware');
 const { planBasedRateLimiter, storageLimitChecker } = require('../middleware/rateLimiter');
 const { verifyActivePlan } = require('../middleware/planVerification.middleware');
+const { isValidFileType } = require('../services/fileService');
 
 const router = express.Router();
 
@@ -19,8 +20,18 @@ const storage = multer.diskStorage({
   }
 });
 
+// File filter function to validate file types      
+const fileFilter = (req, file, cb) => {
+  if (isValidFileType(file.originalname)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Unsupported file type. Supported types: PDF, DOCX, TXT, CSV'), false);
+  }
+};
+
 const upload = multer({ 
   storage: storage,
+  fileFilter: fileFilter,
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB limit
     files: 5 // Maximum 5 files per request

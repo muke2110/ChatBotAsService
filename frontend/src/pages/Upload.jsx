@@ -45,10 +45,13 @@ const Upload = () => {
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
-      if (selectedFile.type === 'application/pdf') {
+      const fileExtension = selectedFile.name.split('.').pop().toLowerCase();
+      const supportedTypes = ['pdf', 'docx', 'txt', 'csv'];
+      
+      if (supportedTypes.includes(fileExtension)) {
         setFile(selectedFile);
       } else {
-        toast.error('Please upload a PDF file');
+        toast.error('Please upload a supported file type: PDF, DOCX, TXT, or CSV');
       }
     }
   };
@@ -172,11 +175,11 @@ const Upload = () => {
               <form onSubmit={handleUpload} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Select PDF File
+                    Select Document File (PDF, DOCX, TXT, CSV)
                   </label>
                       <input
                         type="file"
-                        accept=".pdf"
+                        accept=".pdf,.docx,.txt,.csv"
                         onChange={handleFileChange}
                         className="block w-full text-sm text-gray-500 dark:text-gray-400
                 file:mr-4 file:py-2 file:px-4
@@ -204,7 +207,7 @@ const Upload = () => {
               <div className="flex">
                 <div className="ml-3">
                   <p className="text-sm text-blue-700 dark:text-blue-200">
-                    No documents uploaded for this widget yet. Upload a PDF document to get started.
+                    No documents uploaded for this widget yet. Upload a document (PDF, DOCX, TXT, CSV) to get started.
                   </p>
                   </div>
               </div>

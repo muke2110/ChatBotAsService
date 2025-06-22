@@ -352,4 +352,31 @@ style.innerHTML = `
 document.head.appendChild(style);
 
 // Make it available globally
-window.ChatbotService = ChatbotService; 
+window.ChatbotService = ChatbotService;
+
+// Auto-initialize if URL parameters are present
+(function() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const clientId = urlParams.get('clientId');
+  const widgetId = urlParams.get('widgetId');
+  
+  if (clientId) {
+    // Auto-initialize with URL parameters
+    const config = {
+      clientId: clientId,
+      widgetId: widgetId || null,
+      apiUrl: urlParams.get('apiUrl') || 'https://localhost:3000/api/v1',
+      position: urlParams.get('position') || 'bottom-right',
+      theme: {
+        primaryColor: urlParams.get('primaryColor') || '#007bff',
+        backgroundColor: urlParams.get('backgroundColor') || '#ffffff',
+        textColor: urlParams.get('textColor') || '#000000'
+      },
+      botName: urlParams.get('botName') || 'Chat Assistant',
+      welcomeMessage: urlParams.get('welcomeMessage') || 'Hello! How can I help you today?'
+    };
+    
+    // Initialize the chatbot automatically
+    new ChatbotService(config);
+  }
+})(); 
